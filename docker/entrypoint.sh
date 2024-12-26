@@ -77,10 +77,12 @@ else
     DISTRO="librescoot-mdb"
 fi
 
+BSPDIR="/yocto"
+
 echo "Creating local.conf..."
 cat > /yocto/build/conf/local.conf << EOL
-MACHINE ??= '$MACHINE'
-DISTRO ?= '$DISTRO'
+MACHINE ??= '${MACHINE}'
+DISTRO ?= '${DISTRO}'
 MENDER_ARTIFACT_NAME = "release-1"
 INHERIT += "mender-full"
 ARTIFACTIMG_FSTYPE = "ext4"
@@ -105,5 +107,5 @@ EOL
 
 echo "Starting build process..."
 
-bitbake librescoot-${TARGET}-image --continue
+bitbake "librescoot-${TARGET}-image" --continue
 
