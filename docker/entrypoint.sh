@@ -40,7 +40,6 @@ clone_layer "meta-librescoot" "scarthgap" "https://github.com/librescoot/meta-li
 
 echo "Setting up build environment..."
 DISTRO=librescoot-mdb source ./imx-setup-release.sh -b build
-BSPDIR="/yocto"
 
 # Update local.conf based on the TARGET environment variable
 TARGET="${TARGET:-mdb}"
@@ -48,8 +47,7 @@ TARGET="${TARGET:-mdb}"
 echo "Overwriting bblayers.conf..."
 
 if [ "$TARGET" == "dbc" ]; then
-    MACHINE="librescoot-dbc"
-    DISTRO="librescoot-dbc"
+    # dbc
     cat > /yocto/build/conf/bblayers.conf << 'EOL'
 LCONF_VERSION = "7"
 
@@ -91,7 +89,8 @@ BBLAYERS += "${BSPDIR}/sources/meta-security/meta-parsec"
 BBLAYERS += "${BSPDIR}/sources/meta-security/meta-tpm"
 BBLAYERS += "${BSPDIR}/sources/meta-virtualization"
 EOL
-    cat > /yocto/build/conf/local.conf << EOL
+    echo "Overwriting local.conf..."
+    cat > /yocto/build/conf/local.conf << 'EOL'
 MACHINE ??= 'librescoot-dbc'
 DISTRO ?= 'librescoot-dbc'
 MENDER_ARTIFACT_NAME = "release-1"
@@ -110,14 +109,13 @@ USER_CLASSES ?= "buildstats"
 PATCHRESOLVE = "noop"
 PACKAGECONFIG:append:pn-qemu-system-native = " sdl"
 CONF_VERSION = "2"
-DL_DIR ?= "${BSPDIR}/downloads/"
+DL_DIR ?= "/yocto/downloads/"
 ACCEPT_FSL_EULA = "1"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
 # EXTRA_IMAGE_FEATURES = "debug-tweaks"
 EOL
 else
-    MACHINE="librescoot-mdb"
-    DISTRO="librescoot-mdb"
+    # mdb
     cat > /yocto/build/conf/bblayers.conf << 'EOL'
 LCONF_VERSION = "7"
 
@@ -140,27 +138,28 @@ BBLAYERS = " \
   ${BSPDIR}/sources/meta-flutter \
 "
 EOL
-    echo "Creating local.conf..."
-    cat > /yocto/build/conf/local.conf << EOL
-MACHINE ??= '${MACHINE}'
-DISTRO ?= '${DISTRO}'
+    echo "Overwriting local.conf..."
+    cat > /yocto/build/conf/local.conf << 'EOL'
+MACHINE ??= 'librescoot-mdb'
+DISTRO ?= 'librescoot-mdb'
 MENDER_ARTIFACT_NAME = "release-1"
 INHERIT += "mender-full"
 ARTIFACTIMG_FSTYPE = "ext4"
 INIT_MANAGER = "systemd"
-DISTRO_VERSION = "0.0.1"
+LIBRESCOOT_VERSION = "0.0.1"
 OLDEST_KERNEL = "5.4.24"
 PREFERRED_PROVIDER_u-boot = "u-boot-imx"
 PREFERRED_PROVIDER_virtual/bootloader = "u-boot-imx"
 PREFERRED_PROVIDER_virtual/kernel="linux-imx"
-PREFERRED_VERSION_linux_imx = "5.4.24"
+PREFERRED_VERSION_linux-imx = "5.4.24+git"
+PREFERRED_VERSION_linux-libc-headers = "5.4.25"
 PREFERRED_VERSION_u-boot-imx = "2017.03"
 EXTRA_IMAGE_FEATURES ?= "debug-tweaks"
 USER_CLASSES ?= "buildstats"
 PATCHRESOLVE = "noop"
 PACKAGECONFIG:append:pn-qemu-system-native = " sdl"
 CONF_VERSION = "2"
-DL_DIR ?= "${BSPDIR}/downloads/"
+DL_DIR ?= "/yocto/downloads/"
 ACCEPT_FSL_EULA = "1"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
 EXTRA_IMAGE_FEATURES = "debug-tweaks"
