@@ -23,19 +23,28 @@ yocto/build/tmp-glibc/deploy/images/librescoot-mdb/*.wic.gz
 ```
 for MDB or
 ```
-yocto/build/tmp-glibc/deploy/images/librescoot-dbc/*.wic.gz
+yocto/build/tmp/deploy/images/librescoot-dbc/*.zst
 ```
 for DBC.
 
 ## Flashing Instructions
 To flash the firmware to the Middle Driver Board (MDB):
-
 1. Connect the MDB via mini-USB
 2. Power the MDB with a stable 12V power supply
 3. Ensure the MDB is in mass-storage mode
 4. Flash using:
 ```bash
 gunzip -c firmware.wic.gz | sudo dd of=/dev/sdX bs=4M oflag=direct status=progress
+```
+Replace `/dev/sdX` with your actual device path.
+
+For DBC firmware:
+1. Connect the DBC via USB
+2. Power the DBC with appropriate power supply
+3. Ensure the DBC is in mass-storage mode
+4. Flash using:
+```bash
+unzstd -c firmware.zst | sudo dd of=/dev/sdX bs=4M oflag=direct status=progress
 ```
 Replace `/dev/sdX` with your actual device path.
 
