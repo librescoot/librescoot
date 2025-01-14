@@ -68,7 +68,6 @@ BBLAYERS = " \
   ${BSPDIR}/sources/meta-mender/meta-mender-demo \
   ${BSPDIR}/sources/meta-flutter \
   ${BSPDIR}/sources/meta-librescoot \
-  /yocto/build/workspace \
   "
 # i.MX Yocto Project Release layers
 BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-bsp"

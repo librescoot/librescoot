@@ -1,0 +1,180 @@
+name: Nightly Builds
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  check-changes:
+    name: Check for Changes
+    runs-on: self-hosted
+    outputs:
+      has_changes: ${{ steps.check.outputs.has_changes }}
+      since_time: ${{ steps.time.outputs.since }}
+    steps:
+      - name: Get timestamp
+        id: time
+        run: |
+          SINCE=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
+          echo "since=${SINCE}" >> $GITHUB_OUTPUT
+
+      - name: Get latest commits
+        id: check
+        run: |
+          # Check for new commits in relevant repositories
+          REPOS=(
+            "librescoot/librescoot"
+            "librescoot/meta-librescoot"
+            "librescoot/scootui"
+          )
+          
+          HAS_CHANGES=false
+          for REPO in "${REPOS[@]}"; do
+            COMMITS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                     "https://api.github.com/repos/${REPO}/commits?since=${SINCE}")
+            if [[ $COMMITS != "[]" ]]; then
+              HAS_CHANGES=true
+              echo "Found new commits in ${REPO}"
+              break
+            fi
+          done
+          
+          echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build Firmware (${{ matrix.target }})
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ${{ matrix.target }}
+    strategy:
+      matrix:
+        target: [mdb, dbc]
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          clean: false
+
+      - name: Create Yocto directory
+        run: |
+          mkdir -p yocto
+          sudo chown 999:999 yocto
+
+      - name: Build firmware
+        run: |
+          sed -i 's/docker run -it/docker run -i/' build.sh
+          sed -i 's/docker run -it/docker run -i/' interactive.sh
+          sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
+          ./build.sh ${{ matrix.target }}
+
+      - name: Prepare artifacts
+        run: |
+          rm -rf artifacts/*
+          mkdir -p artifacts/${{ matrix.target }}
+          if [ "${{ matrix.target }}" = "mdb" ]; then
+            cp yocto/build/tmp-glibc/deploy/images/librescoot-mdb/librescoot-mdb-image-librescoot-mdb-*.wic.gz artifacts/${{ matrix.target }}/
+          else
+            cp yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.wic.zst artifacts/${{ matrix.target }}/
+          fi
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target == 'mdb' && format('librescoot-{0}-{1}.wic.gz', matrix.target, github.sha) || format('librescoot-{0}-{1}.zst', matrix.target, github.sha) }}
+          path: artifacts/${{ matrix.target }}/*
+          retention-days: 7
+          compression-level: 0
+
+  create-release:
+    name: Create Release
+    needs: [check-changes, build]
+    if: ${{ (needs.check-changes.outputs.has_changes == 'true' && github.event_name == 'schedule') || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          
+      - name: Generate changelog
+        id: changelog
+        run: |
+          CHANGELOG=""
+          REPOS=(
+            "librescoot/librescoot"
+            "librescoot/meta-librescoot"
+            "librescoot/scootui"
+          )
+          
+          for REPO in "${REPOS[@]}"; do
+            COMMITS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                     "https://api.github.com/repos/${REPO}/commits?since=${{ needs.check-changes.outputs.since_time }}")
+            
+            if [[ $COMMITS != "[]" ]]; then
+              CHANGELOG="${CHANGELOG}### ${REPO}\n\n"
+              while IFS= read -r commit; do
+                SHA=$(echo "$commit" | jq -r '.sha')
+                MESSAGE=$(echo "$commit" | jq -r '.commit.message' | sed 's/"/\\"/g')
+                URL=$(echo "$commit" | jq -r '.html_url')
+                AUTHOR=$(echo "$commit" | jq -r '.commit.author.name')
+                
+                SHORT_MESSAGE=$(echo "$MESSAGE" | head -n1)
+                
+                CHANGELOG="${CHANGELOG}* [\`${SHA:0:7}\`](${URL}) - ${SHORT_MESSAGE}\n"
+              done < <(echo "$COMMITS" | jq -c '.[]')
+              CHANGELOG="${CHANGELOG}\n"
+            fi
+          done
+          
+          # Store raw changelog without URL encoding
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create date tag
+        id: date
+        run: |
+          echo "value=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
+      - name: Create Github release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Nightly Build ${{ steps.date.outputs.value }}-${{ github.sha }}
+          tag_name: nightly-${{ steps.date.outputs.value }}-${{ github.sha }}
+          prerelease: true
+          files: |
+            artifacts/**/*
+          body: |
+            🌙 Nightly build of LibreScoot firmware
+            
+            ⚠️ **WARNING: EXPERIMENTAL BUILD - DO NOT USE ON REAL HARDWARE** ⚠️
+            
+            This is an automated nightly build from commit ${{ github.sha }}. These builds are intended for development and testing purposes only.
+            
+            ## Changelog
+            ${{ steps.changelog.outputs.content }}
+            
+            Build completed at: ${{ github.event.repository.updated_at }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify Discord
+        uses: rjstone/discord-webhook-notify@v1
+        if: success()
+        with:
+          severity: info
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+          username: "LibreScoot Nightly Build"
+          description: "🌙 New nightly build has been uploaded!"
+          details: |
+            **Release:** [Nightly Build ${{ steps.date.outputs.value }}-${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/nightly-${{ steps.date.outputs.value }}-${{ github.sha }})
+            
+            ## Changelog:
+            ${{ steps.changelog.outputs.content }}
+          color: '#3498db'
