@@ -14,7 +14,7 @@ This project aims to create a free and open source firmware for iMX6-based elect
 ```bash
 git clone https://github.com/librescoot/librescoot.git
 cd librescoot
-./run.sh
+./build.sh
 ```
 
 The compiled firmware will be located at:
