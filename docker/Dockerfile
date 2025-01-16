@@ -1,5 +1,8 @@
 FROM ubuntu:22.04
 
+ARG UID
+ARG GID
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LC_ALL=en_US.UTF-8
 ENV LANG=en_US.UTF-8
@@ -15,9 +18,10 @@ RUN apt-get update && apt-get install -y \
 
 RUN locale-gen en_US.UTF-8
 
+RUN groupadd -g ${GID} -f yocto && \
+    useradd -m -u ${UID} -g ${GID} yocto
+
 RUN mkdir -p /etc/sudoers.d && \
-    groupadd -g 999 yocto && \
-    useradd -m -u 999 -g 999 yocto && \
     usermod -aG sudo yocto && \
     echo "yocto ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/yocto
 
