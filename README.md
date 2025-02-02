@@ -19,11 +19,11 @@ cd librescoot
 
 The compiled firmware will be located at:
 ```
-yocto/build/tmp-glibc/deploy/images/librescoot-mdb/*.wic.gz
+yocto/build/tmp-glibc/deploy/images/librescoot-mdb/*.sdimg
 ```
 for MDB or
 ```
-yocto/build/tmp/deploy/images/librescoot-dbc/*.zst
+yocto/build/tmp/deploy/images/librescoot-dbc/*.sdimg
 ```
 for DBC.
 

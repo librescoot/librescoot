@@ -78,9 +78,13 @@ jobs:
           rm -rf artifacts/*
           mkdir -p artifacts/${{ matrix.target }}
           if [ "${{ matrix.target }}" = "mdb" ]; then
-            cp yocto/build/tmp-glibc/deploy/images/librescoot-mdb/librescoot-mdb-image-librescoot-mdb-*.wic.gz artifacts/${{ matrix.target }}/
+            gzip -f -k -9 yocto/build/tmp-glibc/deploy/images/librescoot-mdb/librescoot-mdb-image-librescoot-mdb-*.sdimg
+            cp yocto/build/tmp-glibc/deploy/images/librescoot-mdb/librescoot-mdb-image-librescoot-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/
+            rm octo/build/tmp-glibc/deploy/images/librescoot-mdb/librescoot-mdb-image-librescoot-mdb-*.sdimg.gz
           else
-            cp yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.wic.zst artifacts/${{ matrix.target }}/
+            gzip -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.sdimg
+            cp yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/
+            rm yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.sdimg.gz
           fi
 
       - name: Upload firmware artifacts
