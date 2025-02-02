@@ -106,6 +106,7 @@ jobs:
         id: changelog
         run: |
           CHANGELOG=""
+          HAS_CHANGES=false
           REPOS=(
             "librescoot/librescoot"
             "librescoot/meta-librescoot"
@@ -117,6 +118,7 @@ jobs:
                      "https://api.github.com/repos/${REPO}/commits?since=${{ needs.check-changes.outputs.since_time }}")
             
             if [[ $COMMITS != "[]" ]]; then
+              HAS_CHANGES=true
               CHANGELOG="${CHANGELOG}### ${REPO}\n\n"
               while IFS= read -r commit; do
                 SHA=$(echo "$commit" | jq -r '.sha')
@@ -137,12 +139,16 @@ jobs:
           echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+          echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
+
       - name: Create date tag
         id: date
+        if: steps.changelog.outputs.has_changes == 'true'
         run: |
           echo "value=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
       - name: Create Github release
+        if: steps.changelog.outputs.has_changes == 'true'
         uses: softprops/action-gh-release@v1
         with:
           name: Nightly Build ${{ steps.date.outputs.value }}-${{ github.sha }}
@@ -165,8 +171,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Notify Discord
+        if: success() && steps.changelog.outputs.has_changes == 'true'
         uses: rjstone/discord-webhook-notify@v1
-        if: success()
         with:
           severity: info
           webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
