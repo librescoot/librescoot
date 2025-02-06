@@ -36,7 +36,7 @@ jobs:
           for REPO in "${REPOS[@]}"; do
             COMMITS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                      "https://api.github.com/repos/${REPO}/commits?since=${SINCE}")
-            if [[ $COMMITS != "[]" ]]; then
+            if [ "$(echo "$COMMITS" | jq 'length')" -gt 0 ]; then
               HAS_CHANGES=true
               echo "Found new commits in ${REPO}"
               break
@@ -121,7 +121,7 @@ jobs:
             COMMITS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                      "https://api.github.com/repos/${REPO}/commits?since=${{ needs.check-changes.outputs.since_time }}")
             
-            if [[ $COMMITS != "[]" ]]; then
+            if [ "$(echo "$COMMITS" | jq 'length')" -gt 0 ]; then
               HAS_CHANGES=true
               CHANGELOG="${CHANGELOG}### ${REPO}\n\n"
               while IFS= read -r commit; do
