@@ -37,6 +37,7 @@ clone_layer() {
 clone_layer "meta-mender" "scarthgap" "https://github.com/mendersoftware/meta-mender" "sources/meta-mender"
 clone_layer "meta-flutter" "scarthgap" "https://github.com/meta-flutter/meta-flutter.git" "sources/meta-flutter"
 clone_layer "meta-librescoot" "scarthgap" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
+clone_layer "meta-openjdk-temurin" "scarthgap" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
 
 echo "Setting up build environment..."
 DISTRO=librescoot-mdb source ./imx-setup-release.sh -b build
@@ -68,6 +69,7 @@ BBLAYERS = " \
   ${BSPDIR}/sources/meta-mender/meta-mender-demo \
   ${BSPDIR}/sources/meta-flutter \
   ${BSPDIR}/sources/meta-librescoot \
+  ${BSPDIR}/sources/meta-openjdk-temurin \
   "
 # i.MX Yocto Project Release layers
 BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-bsp"
