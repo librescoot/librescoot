@@ -34,8 +34,7 @@ jobs:
           
           HAS_CHANGES=false
           for REPO in "${REPOS[@]}"; do
-            COMMITS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                     "https://api.github.com/repos/${REPO}/commits?since=${SINCE}")
+            COMMITS=$(curl -s "https://api.github.com/repos/${REPO}/commits?since=${SINCE}")
             if [ "$(echo "$COMMITS" | jq 'length')" -gt 0 ]; then
               HAS_CHANGES=true
               echo "Found new commits in ${REPO}"
@@ -118,8 +117,7 @@ jobs:
           )
           
           for REPO in "${REPOS[@]}"; do
-            COMMITS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                     "https://api.github.com/repos/${REPO}/commits?since=${{ needs.check-changes.outputs.since_time }}")
+            COMMITS=$(curl -s "https://api.github.com/repos/${REPO}/commits?since=${{ needs.check-changes.outputs.since_time }}")
             
             if [ "$(echo "$COMMITS" | jq 'length')" -gt 0 ]; then
               HAS_CHANGES=true
