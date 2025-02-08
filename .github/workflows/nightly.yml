@@ -30,6 +30,8 @@ jobs:
             "librescoot/librescoot"
             "librescoot/meta-librescoot"
             "librescoot/scootui"
+            "librescoot/ecu-service"
+            "librescoot/vehicle-service"
           )
           
           HAS_CHANGES=false
@@ -114,6 +116,8 @@ jobs:
             "librescoot/librescoot"
             "librescoot/meta-librescoot"
             "librescoot/scootui"
+            "librescoot/ecu-service"
+            "librescoot/vehicle-service"
           )
           
           for REPO in "${REPOS[@]}"; do
