@@ -32,6 +32,7 @@ jobs:
             "librescoot/scootui"
             "librescoot/ecu-service"
             "librescoot/vehicle-service"
+            "librescoot/battery-service"
             "rescoot/unu-radio-gaga"
           )
           
@@ -121,6 +122,7 @@ jobs:
             "librescoot/scootui"
             "librescoot/ecu-service"
             "librescoot/vehicle-service"
+            "librescoot/battery-service"
             "rescoot/unu-radio-gaga"
           )
           
