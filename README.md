@@ -4,7 +4,7 @@
 
 ⚠️ **WARNING: EXTREMELY EXPERIMENTAL - DO NOT USE ON REAL HARDWARE** ⚠️
 
-This project aims to create a free and open source firmware for iMX6-based electric scooters. It is currently in early development stages and **will brick your scooter** if installed. This is a research project and should not be used on any real hardware yet.
+This project aims to create a free and open source firmware for iMX6-based electric scooters. It is currently in early development stages and **might brick your scooter** if installed. This is a research project and should not be used on any real hardware yet.
 
 ## Requirements
 - Any Linux distribution
@@ -34,17 +34,16 @@ To flash the firmware to the Middle Driver Board (MDB):
 3. Ensure the MDB is in mass-storage mode
 4. Flash using:
 ```bash
-gunzip -c firmware.wic.gz | sudo dd of=/dev/sdX bs=4M oflag=direct status=progress
+gunzip -c *.sdimg.gz | sudo dd of=/dev/sdX bs=4M oflag=direct status=progress
 ```
 Replace `/dev/sdX` with your actual device path.
 
 For DBC firmware:
 1. Connect the DBC via USB
-2. Power the DBC with appropriate power supply
-3. Ensure the DBC is in mass-storage mode
-4. Flash using:
+2. Ensure the DBC is in mass-storage mode
+3. Flash using:
 ```bash
-unzstd -c firmware.zst | sudo dd of=/dev/sdX bs=4M oflag=direct status=progress
+gunzip -c *.sdimg.gz | sudo dd of=/dev/sdX bs=4M oflag=direct status=progress
 ```
 Replace `/dev/sdX` with your actual device path.
 
