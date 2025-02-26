@@ -93,7 +93,7 @@ jobs:
         with:
           name: ${{ matrix.target == 'mdb' && format('librescoot-{0}-{1}.wic.gz', matrix.target, github.sha) || format('librescoot-{0}-{1}.zst', matrix.target, github.sha) }}
           path: artifacts/${{ matrix.target }}/*
-          retention-days: 7
+          retention-days: 1
           compression-level: 0
 
   create-release:
