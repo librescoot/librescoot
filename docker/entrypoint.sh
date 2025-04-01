@@ -114,6 +114,7 @@ DL_DIR ?= "/yocto/downloads/"
 ACCEPT_FSL_EULA = "1"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
 # EXTRA_IMAGE_FEATURES = "debug-tweaks"
+DEFAULT_TIMEZONE = "Europe/Berlin"
 EOL
 else
     # mdb
@@ -165,6 +166,7 @@ DL_DIR ?= "/yocto/downloads/"
 ACCEPT_FSL_EULA = "1"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
 EXTRA_IMAGE_FEATURES = "debug-tweaks"
+DEFAULT_TIMEZONE = "Europe/Berlin"
 EOL
 fi
 
