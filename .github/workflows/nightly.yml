@@ -103,7 +103,8 @@ jobs:
   create-release:
     name: Create Release
     needs: [check-changes, build]
-    if: ${{ (needs.check-changes.outputs.has_changes == 'true' && github.event_name == 'schedule') || github.event_name == 'workflow_dispatch' }}
+    # Only create releases for scheduled builds or manual triggers on the main branch (scarthgap)
+    if: ${{ (needs.check-changes.outputs.has_changes == 'true' && github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/scarthgap') }}
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
