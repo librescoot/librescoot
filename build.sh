@@ -32,7 +32,7 @@ echo "Building target: ${TARGET}"
 
 sudo docker run -it --rm \
     -v "$(pwd)/yocto:/yocto" \
-    --name "yocto-build-${TARGET}-${BRANCH}" \
+    --name "yocto-build" \
     -e TARGET="${TARGET}" \
     -e BRANCH="${BRANCH}" \
     -e LIBRESCOOT_VERSION="${VERSION}" \
