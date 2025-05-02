@@ -91,6 +91,7 @@ jobs:
             cp yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.mender artifacts/${{ matrix.target }}/
             sudo rm yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.sdimg.gz
           fi
+          ls -l artifacts/*
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
