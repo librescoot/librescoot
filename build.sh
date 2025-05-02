@@ -2,13 +2,15 @@
 
 if [ -z "$1" ]; then
     echo "Error: No target specified."
-    echo "Usage: $0 <target>"
+    echo "Usage: $0 <target> [branch]"
     echo "Example: $0 mdb"
     echo "         $0 dbc"
+    echo "         $0 mdb feature-branch"
     exit 1
 fi
 
 TARGET=$1
+BRANCH=${2:-scarthgap}  # Default to scarthgap branch if not specified
 COMMIT_ID=$(git rev-parse --short HEAD)
 
 IMAGE_NAME="yocto-librescoot:${COMMIT_ID}"
@@ -29,5 +31,5 @@ sudo docker run -it --rm \
     -v "$(pwd)/yocto:/yocto" \
     --name yocto-build \
     -e TARGET="${TARGET}" \
+    -e BRANCH="${BRANCH}" \
     "${IMAGE_NAME}"
-

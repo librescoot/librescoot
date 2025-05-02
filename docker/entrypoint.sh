@@ -3,6 +3,10 @@ set -e
 
 cd /yocto
 
+# Set default branch if not provided
+BRANCH="${BRANCH:-scarthgap}"
+echo "Using branch: ${BRANCH}"
+
 # Configure Git globally
 echo "Configuring Git..."
 git config --global user.email "yocto.builder@example.com"
@@ -36,7 +40,7 @@ clone_layer() {
 
 clone_layer "meta-mender" "scarthgap" "https://github.com/mendersoftware/meta-mender" "sources/meta-mender"
 clone_layer "meta-flutter" "scarthgap" "https://github.com/meta-flutter/meta-flutter.git" "sources/meta-flutter"
-clone_layer "meta-librescoot" "scarthgap" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
+clone_layer "meta-librescoot" "${BRANCH}" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
 clone_layer "meta-openjdk-temurin" "scarthgap" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
 
 echo "Setting up build environment..."
@@ -71,6 +75,9 @@ BBLAYERS = " \
   ${BSPDIR}/sources/meta-librescoot \
   ${BSPDIR}/sources/meta-openjdk-temurin \
   "
+
+BBLAYERS += "${BSPDIR}/sources/meta-openembedded/meta-initramfs"
+
 # i.MX Yocto Project Release layers
 BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-bsp"
 BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-sdk"
@@ -173,4 +180,3 @@ fi
 echo "Starting build process..."
 
 bitbake "librescoot-${TARGET}-image" --continue
-
