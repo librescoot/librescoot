@@ -33,10 +33,12 @@ clone_layer() {
     else
         cd "$path"
         git checkout "$branch"
-        git pull
-        cd /yocto
+        git pull || true
+        cd -
     fi
 }
+
+git config --global --add safe.directory /yocto/sources/meta-librescoot
 
 clone_layer "meta-mender" "scarthgap" "https://github.com/mendersoftware/meta-mender" "sources/meta-mender"
 clone_layer "meta-flutter" "scarthgap" "https://github.com/meta-flutter/meta-flutter.git" "sources/meta-flutter"
