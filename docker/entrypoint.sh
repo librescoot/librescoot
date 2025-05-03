@@ -45,6 +45,13 @@ clone_layer "meta-flutter" "scarthgap" "https://github.com/meta-flutter/meta-flu
 clone_layer "meta-librescoot" "${BRANCH}" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
 clone_layer "meta-openjdk-temurin" "scarthgap" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
 
+# Determine LIBRESCOOT_VERSION from meta-librescoot repository
+cd "sources/meta-librescoot"
+META_LIBRESCOOT_VERSION=$(git describe --always --long --tags --dirty 2>/dev/null || echo "0.0.1-dev")
+cd -
+LIBRESCOOT_VERSION="${META_LIBRESCOOT_VERSION}"
+echo "Using LibreScoot version from meta-librescoot: ${LIBRESCOOT_VERSION}"
+
 echo "Setting up build environment..."
 DISTRO=librescoot-mdb source ./imx-setup-release.sh -b build
 
@@ -116,6 +123,7 @@ PREFERRED_VERSION_linux-imx = "6.6.3+git"
 
 # EXTRA_IMAGE_FEATURES ?= "debug-tweaks"
 USER_CLASSES ?= "buildstats"
+PACKAGE_CLASSES ?= "package_rpm"
 PATCHRESOLVE = "noop"
 PACKAGECONFIG:append:pn-qemu-system-native = " sdl"
 CONF_VERSION = "2"
@@ -168,6 +176,7 @@ PREFERRED_VERSION_linux-libc-headers = "5.4.25"
 PREFERRED_VERSION_u-boot-imx = "2017.03"
 EXTRA_IMAGE_FEATURES ?= "debug-tweaks"
 USER_CLASSES ?= "buildstats"
+PACKAGE_CLASSES ?= "package_rpm"
 PATCHRESOLVE = "noop"
 PACKAGECONFIG:append:pn-qemu-system-native = " sdl"
 CONF_VERSION = "2"

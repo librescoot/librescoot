@@ -14,18 +14,90 @@ This project aims to create a free and open source firmware for iMX6-based elect
 ```bash
 git clone https://github.com/librescoot/librescoot.git
 cd librescoot
-./build.sh
+./build.sh mdb
+# OR for the DBC
+# ./build.sh dbc
 ```
 
 The compiled firmware will be located at:
 ```
 yocto/build/tmp-glibc/deploy/images/librescoot-mdb/*.sdimg
 ```
-for MDB or
+for MDB (Middle Driver Board) or
 ```
 yocto/build/tmp/deploy/images/librescoot-dbc/*.sdimg
 ```
-for DBC.
+for DBC (Dashboard Controller).
+
+## Build System Documentation
+
+### Build Script (build.sh)
+
+The `build.sh` script automates the build process using Docker containers to ensure a consistent build environment.
+
+**Usage:**
+```bash
+./build.sh <target> [branch]
+```
+
+**Parameters:**
+- `<target>`: Required. Specifies the target board:
+  - `mdb`: Middle Driver Board
+  - `dbc`: Dashboard Controller
+- `[branch]`: Optional. Git branch to use for meta-librescoot layer (defaults to "scarthgap")
+
+**Example:**
+```bash
+./build.sh mdb                  # Build MDB firmware using default branch
+./build.sh dbc feature-branch   # Build DBC firmware using a custom branch
+```
+
+The script performs the following operations:
+1. Creates a Docker image for the build environment
+2. Mounts the local yocto directory into the container
+3. Runs the container with the specified target and branch parameters
+
+### Docker Entrypoint (docker/entrypoint.sh)
+
+The Docker entrypoint script handles the Yocto build process inside the container:
+
+1. **Environment Setup**:
+   - Configures Git with default identity
+   - Initializes repo for NXP's imx-manifest
+   - Syncs repositories
+
+2. **Layer Management**:
+   - Clones necessary Yocto layers:
+     - meta-mender: For OTA updates
+     - meta-flutter: For Flutter app support
+     - meta-librescoot: LibreScoot-specific layer
+     - meta-openjdk-temurin: Java support
+
+3. **Build Configuration**:
+   - Sets up build environment with DISTRO=librescoot-mdb
+   - Configures bblayers.conf and local.conf based on target (mdb/dbc)
+   - Sets various build variables, including:
+     - MACHINE (librescoot-mdb or librescoot-dbc)
+     - DISTRO (librescoot-mdb or librescoot-dbc)
+     - Mender configuration for OTA updates
+     - Kernel and U-Boot versions
+     - Timezone settings
+   - Note: The LIBRESCOOT_VERSION is determined from the meta-librescoot layer using `git describe --tags --dirty`, which captures the current tag, any additional commits, and whether there are uncommitted changes
+
+4. **Build Process**:
+   - Executes bitbake to build the image for the specified target
+
+### Target Differences
+
+#### MDB (Middle Driver Board)
+- Based on iMX6 platform
+- Uses Linux kernel 5.4.24
+- Default configuration in meta-librescoot
+
+#### DBC (Dashboard Controller Board)
+- Based on iMX6 platform
+- Uses newer Linux kernel 6.6.3
+- Additional layers for multimedia and UI support
 
 ## Flashing Instructions
 To flash the firmware to the Middle Driver Board (MDB):
