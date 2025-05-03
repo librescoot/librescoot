@@ -15,7 +15,7 @@ fi
 
 sudo docker run -it --rm \
     -v "$(pwd)/yocto:/yocto" \
-    --name yocto-build \
+    --name yocto-build-interactive \
     --entrypoint /bin/bash \
     "${IMAGE_NAME}"
 
