@@ -12,21 +12,25 @@ fi
 TARGET=$1
 BRANCH=${2:-scarthgap}  # Default to scarthgap branch if not specified
 COMMIT_ID=$(git rev-parse --short HEAD)
-# Get version from git describe, fall back to 0.0.1 if not available
-VERSION=$(git describe --tags 2>/dev/null || echo "0.0.1")
 
-echo "LibreScoot Version: ${VERSION}"
 IMAGE_NAME="yocto-librescoot:${COMMIT_ID}"
 
 mkdir -p yocto
 sudo chown 999:999 yocto
 
-# if ! sudo docker images | grep -q "${COMMIT_ID}"; then
+git_dirty=false
+image_exists=false
+
+git diff-index --quiet HEAD -- || git_dirty=true
+sudo docker images | grep -q "${COMMIT_ID}" && image_exists=true
+echo "git_dirty: $git_dirty  image_exists: $image_exists"
+
+if [ $git_dirty = "true" -o $image_exists = "false" ]; then
     echo "Building Docker image ${IMAGE_NAME}..."
     sudo docker build -t "${IMAGE_NAME}" ./docker
-# else
-#     echo "Using existing Docker image ${IMAGE_NAME}."
-# fi
+else
+    echo "Using existing Docker image ${IMAGE_NAME}."
+fi
 
 echo "Building target: ${TARGET}"
 
@@ -35,5 +39,4 @@ sudo docker run -it --rm \
     --name "yocto-build" \
     -e TARGET="${TARGET}" \
     -e BRANCH="${BRANCH}" \
-    -e LIBRESCOOT_VERSION="${VERSION}" \
     "${IMAGE_NAME}"
