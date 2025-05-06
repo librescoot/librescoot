@@ -45,12 +45,16 @@ clone_layer "meta-flutter" "scarthgap" "https://github.com/meta-flutter/meta-flu
 clone_layer "meta-librescoot" "${BRANCH}" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
 clone_layer "meta-openjdk-temurin" "scarthgap" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
 
-# Determine LIBRESCOOT_VERSION from meta-librescoot repository
-cd "sources/meta-librescoot"
-META_LIBRESCOOT_VERSION=$(git describe --always --long --tags --dirty 2>/dev/null || echo "0.0.1-dev")
-cd -
-LIBRESCOOT_VERSION="${META_LIBRESCOOT_VERSION}"
-echo "Using LibreScoot version from meta-librescoot: ${LIBRESCOOT_VERSION}"
+# Determine LIBRESCOOT_VERSION - use environment variable if set, otherwise from meta-librescoot repository
+if [ -z "${LIBRESCOOT_VERSION}" ]; then
+    cd "sources/meta-librescoot"
+    META_LIBRESCOOT_VERSION=$(git describe --always --long --tags --dirty 2>/dev/null || echo "0.0.1-dev")
+    cd -
+    LIBRESCOOT_VERSION="${META_LIBRESCOOT_VERSION}"
+    echo "Using LibreScoot version from meta-librescoot: ${LIBRESCOOT_VERSION}"
+else
+    echo "Using LibreScoot version from environment variable: ${LIBRESCOOT_VERSION}"
+fi
 
 echo "Setting up build environment..."
 DISTRO=librescoot-mdb source ./imx-setup-release.sh -b build
@@ -79,7 +83,6 @@ BBLAYERS = " \
   ${BSPDIR}/sources/meta-freescale-3rdparty \
   ${BSPDIR}/sources/meta-freescale-distro \
   ${BSPDIR}/sources/meta-mender/meta-mender-core \
-  ${BSPDIR}/sources/meta-mender/meta-mender-demo \
   ${BSPDIR}/sources/meta-flutter \
   ${BSPDIR}/sources/meta-librescoot \
   ${BSPDIR}/sources/meta-openjdk-temurin \
@@ -112,6 +115,7 @@ MACHINE ??= 'librescoot-dbc'
 DISTRO ?= 'librescoot-dbc'
 MENDER_ARTIFACT_NAME = "release-1"
 INHERIT += "mender-full"
+INHERIT += "image-buildinfo" 
 ARTIFACTIMG_FSTYPE = "ext4"
 INIT_MANAGER = "systemd"
 LIBRESCOOT_VERSION = "${LIBRESCOOT_VERSION:-0.0.1}"
@@ -153,7 +157,6 @@ BBLAYERS = " \
   ${BSPDIR}/sources/meta-freescale-3rdparty \
   ${BSPDIR}/sources/meta-freescale-distro \
   ${BSPDIR}/sources/meta-mender/meta-mender-core \
-  ${BSPDIR}/sources/meta-mender/meta-mender-demo \
   ${BSPDIR}/sources/meta-librescoot \
   ${BSPDIR}/sources/meta-flutter \
 "
@@ -164,6 +167,7 @@ MACHINE ??= 'librescoot-mdb'
 DISTRO ?= 'librescoot-mdb'
 MENDER_ARTIFACT_NAME = "release-1"
 INHERIT += "mender-full"
+INHERIT += "image-buildinfo" 
 ARTIFACTIMG_FSTYPE = "ext4"
 INIT_MANAGER = "systemd"
 LIBRESCOOT_VERSION = "${LIBRESCOOT_VERSION:-0.0.1}"

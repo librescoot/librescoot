@@ -51,9 +51,23 @@ jobs:
           
           echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
 
+  generate-timestamp:
+    name: Generate Build Timestamp
+    runs-on: ubuntu-latest
+    outputs:
+      timestamp: ${{ steps.set-timestamp.outputs.timestamp }}
+    steps:
+      - name: Set timestamp
+        id: set-timestamp
+        run: |
+          # Generate timestamp in format YYYYMMDDThhmmss
+          TIMESTAMP=$(date -u '+%Y%m%dT%H%M%S')
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "Generated timestamp: $TIMESTAMP"
+
   build:
     name: Build Firmware (${{ matrix.target }})
-    needs: check-changes
+    needs: [check-changes, generate-timestamp]
     if: ${{ needs.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ${{ matrix.target }}
     strategy:
@@ -77,7 +91,8 @@ jobs:
           sed -i 's/docker run -it/docker run -i/' build.sh
           sed -i 's/docker run -it/docker run -i/' interactive.sh
           sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
-          ./build.sh ${{ matrix.target }}
+          # Use the timestamp generated in the previous job
+          LIBRESCOOT_VERSION="${{ needs.generate-timestamp.outputs.timestamp }}" ./build.sh ${{ matrix.target }}
 
       - name: Prepare artifacts
         run: |
@@ -99,14 +114,14 @@ jobs:
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target == 'mdb' && format('librescoot-{0}-{1}.wic.gz', matrix.target, github.sha) || format('librescoot-{0}-{1}.zst', matrix.target, github.sha) }}
+          name: ${{ matrix.target == 'mdb' && format('librescoot-{0}-{1}.wic.gz', matrix.target, needs.generate-timestamp.outputs.timestamp) || format('librescoot-{0}-{1}.zst', matrix.target, needs.generate-timestamp.outputs.timestamp) }}
           path: artifacts/${{ matrix.target }}/*
           retention-days: 1
           compression-level: 0
 
   create-release:
     name: Create Release
-    needs: [check-changes, build]
+    needs: [check-changes, build, generate-timestamp]
     # Only create releases for scheduled builds or manual triggers on the main branch (scarthgap)
     if: ${{ (needs.check-changes.outputs.has_changes == 'true' && github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/scarthgap') }}
     runs-on: ubuntu-latest
@@ -161,27 +176,28 @@ jobs:
 
           echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
 
-      - name: Create date tag
+      - name: Set date tag
         id: date
         if: steps.changelog.outputs.has_changes == 'true'
         run: |
-          echo "value=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+          # Use the timestamp from the generate-timestamp job
+          echo "value=${{ needs.generate-timestamp.outputs.timestamp }}" >> $GITHUB_OUTPUT
 
       - name: Create Github release
         if: steps.changelog.outputs.has_changes == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          name: Nightly Build ${{ steps.date.outputs.value }}-${{ github.sha }}
-          tag_name: nightly-${{ steps.date.outputs.value }}-${{ github.sha }}
+          name: Nightly Build ${{ steps.date.outputs.value }}
+          tag_name: nightly-${{ steps.date.outputs.value }}
           prerelease: true
           files: |
             artifacts/**/*
           body: |
-            🌙 Nightly build of LibreScoot firmware
+            🌙 Nightly build of LibreScoot (version ${{ steps.date.outputs.value }})
             
             ⚠️ **WARNING: EXPERIMENTAL BUILD - DO NOT USE ON REAL HARDWARE** ⚠️
             
-            This is an automated nightly build from commit ${{ github.sha }}. These builds are intended for development and testing purposes only.
+            This is an automated nightly build with version ${{ steps.date.outputs.value }} from commit ${{ github.sha }}. These builds are intended for development and testing purposes only.
             
             ## Changelog
             ${{ steps.changelog.outputs.content }}
@@ -199,5 +215,5 @@ jobs:
           username: "LibreScoot Nightly Build"
           description: "🌙 New nightly build has been uploaded!"
           details: |
-            **Release:** [Nightly Build ${{ steps.date.outputs.value }}-${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/nightly-${{ steps.date.outputs.value }}-${{ github.sha }})
+            **Release:** [Nightly Build ${{ steps.date.outputs.value }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/nightly-${{ steps.date.outputs.value }})
           color: '#3498db'

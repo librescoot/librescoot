@@ -39,4 +39,5 @@ sudo docker run -it --rm \
     --name "yocto-build" \
     -e TARGET="${TARGET}" \
     -e BRANCH="${BRANCH}" \
+    -e LIBRESCOOT_VERSION="${LIBRESCOOT_VERSION}" \
     "${IMAGE_NAME}"
