@@ -200,7 +200,4 @@ jobs:
           description: "🌙 New nightly build has been uploaded!"
           details: |
             **Release:** [Nightly Build ${{ steps.date.outputs.value }}-${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/nightly-${{ steps.date.outputs.value }}-${{ github.sha }})
-            
-            ## Changelog:
-            ${{ steps.changelog.outputs.content }}
           color: '#3498db'
