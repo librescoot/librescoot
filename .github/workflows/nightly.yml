@@ -53,6 +53,7 @@ jobs:
           done
           
           echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
+          echo "has_changes=${HAS_CHANGES}"
 
   generate-timestamp:
     name: Generate Build Timestamp
