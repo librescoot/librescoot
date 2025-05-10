@@ -44,7 +44,9 @@ jobs:
           
           HAS_CHANGES=false
           for REPO in "${REPOS[@]}"; do
+            echo "Checking repo ${REPO}..."
             COMMITS=$(curl -s "https://api.github.com/repos/${REPO}/commits?since=${SINCE}")
+            echo "Found $(echo "$COMMITS" | jq 'length') commits since $SINCE"
             if [ "$(echo "$COMMITS" | jq 'length')" -gt 0 ]; then
               HAS_CHANGES=true
               echo "Found new commits in ${REPO}"
