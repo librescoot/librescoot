@@ -41,6 +41,8 @@ jobs:
             "librescoot/modem-service"
             "rescoot/radio-gaga"
           )
+
+          SINCE="${{ steps.time.outputs.since }}"
           
           HAS_CHANGES=false
           for REPO in "${REPOS[@]}"; do
