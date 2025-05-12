@@ -32,7 +32,15 @@ clone_layer() {
         git clone -b "$branch" "$repo_url" "$path"
     else
         cd "$path"
-        git checkout "$branch"
+        # Hard reset and clean first
+        git clean -fdx
+        git reset --hard HEAD
+        if [ -f .git/MERGE_HEAD ]; then
+            git merge --abort
+        fi
+        git checkout -f "$branch"
+        git fetch origin
+        git reset --hard "origin/$branch"
         git pull || true
         cd -
     fi
