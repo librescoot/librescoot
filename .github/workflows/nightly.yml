@@ -37,8 +37,10 @@ jobs:
             "librescoot/update-service"
             "librescoot/version-service"
             "librescoot/pm-service"
-            "librescoot/smut"
             "librescoot/modem-service"
+            "librescoot/ums-service"
+            "librescoot/settings-service"
+            "librescoot/dbc-backlight-service"
             "rescoot/radio-gaga"
           )
 
@@ -152,10 +154,12 @@ jobs:
             "librescoot/vehicle-service"
             "librescoot/battery-service"
             "librescoot/bluetooth-service"
-            "librescoot/smut"
             "librescoot/modem-service"
             "librescoot/version-service"
             "librescoot/update-service"
+            "librescoot/ums-service"
+            "librescoot/settings-service"
+            "librescoot/dbc-backlight-service"
             "rescoot/radio-gaga"
           )
           
