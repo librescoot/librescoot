@@ -40,4 +40,5 @@ sudo docker run -it --rm \
     -e TARGET="${TARGET}" \
     -e BRANCH="${BRANCH}" \
     -e LIBRESCOOT_VERSION="${LIBRESCOOT_VERSION}" \
+    -e PACKAGE="${PACKAGE}" \
     "${IMAGE_NAME}"

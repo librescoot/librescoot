@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 cd /yocto
 
@@ -204,4 +204,11 @@ fi
 
 echo "Starting build process..."
 
-bitbake "librescoot-${TARGET}-image" --continue
+# Check if PACKAGE is set to build only specific packages
+if [ -n "${PACKAGE}" ]; then
+    echo "Building specific package: ${PACKAGE}"
+    bitbake "${PACKAGE}" --continue
+else
+    echo "Building full image: librescoot-${TARGET}-image"
+    bitbake "librescoot-${TARGET}-image" --continue
+fi
