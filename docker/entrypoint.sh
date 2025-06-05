@@ -210,5 +210,8 @@ if [ -n "${PACKAGE}" ]; then
     bitbake "${PACKAGE}" --continue
 else
     echo "Building full image: librescoot-${TARGET}-image"
+    if [ "${TARGET}" = "dbc" ]; then
+        bitbake -c clean scootui
+    fi
     bitbake "librescoot-${TARGET}-image" --continue
 fi
