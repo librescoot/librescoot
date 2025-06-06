@@ -121,12 +121,12 @@ EOL
     cat > /yocto/build/conf/local.conf << EOL
 MACHINE ??= 'librescoot-dbc'
 DISTRO ?= 'librescoot-dbc'
-MENDER_ARTIFACT_NAME = "release-1"
+LIBRESCOOT_VERSION = "${LIBRESCOOT_VERSION:-0.0.1}"
+MENDER_ARTIFACT_NAME = "release-${LIBRESCOOT_VERSION:-1}"
 INHERIT += "mender-full"
 INHERIT += "image-buildinfo" 
 ARTIFACTIMG_FSTYPE = "ext4"
 INIT_MANAGER = "systemd"
-LIBRESCOOT_VERSION = "${LIBRESCOOT_VERSION:-0.0.1}"
 PRSERV_HOST = "localhost:0"
 
 PREFERRED_PROVIDER_u-boot = "u-boot-imx"
@@ -174,12 +174,12 @@ EOL
     cat > /yocto/build/conf/local.conf << EOL
 MACHINE ??= 'librescoot-mdb'
 DISTRO ?= 'librescoot-mdb'
-MENDER_ARTIFACT_NAME = "release-1"
+LIBRESCOOT_VERSION = "${LIBRESCOOT_VERSION:-0.0.1}"
+MENDER_ARTIFACT_NAME = "release-${LIBRESCOOT_VERSION:-1}"
 INHERIT += "mender-full"
 INHERIT += "image-buildinfo" 
 ARTIFACTIMG_FSTYPE = "ext4"
 INIT_MANAGER = "systemd"
-LIBRESCOOT_VERSION = "${LIBRESCOOT_VERSION:-0.0.1}"
 PRSERV_HOST = "localhost:0"
 OLDEST_KERNEL = "5.4.24"
 PREFERRED_PROVIDER_u-boot = "u-boot-imx"
