@@ -174,8 +174,8 @@ jobs:
           for TARGET in dbc mdb; do
             echo "Processing target: $TARGET"
 
-            # Find the previous .mender file URL
-            PREV_MENDER_URL=$(echo "$PREV_RELEASE" | jq -r ".assets[] | select(.name | endswith(\"${TARGET}.mender\")) | .browser_download_url")
+            # Find the previous .mender file URL (matches pattern: librescoot-TARGET-TIMESTAMP.mender)
+            PREV_MENDER_URL=$(echo "$PREV_RELEASE" | jq -r ".assets[] | select(.name | contains(\"${TARGET}\") and endswith(\".mender\")) | .browser_download_url")
 
             if [ -z "$PREV_MENDER_URL" ] || [ "$PREV_MENDER_URL" == "null" ]; then
               echo "  Warning: No previous .mender file found for $TARGET. Skipping delta."
