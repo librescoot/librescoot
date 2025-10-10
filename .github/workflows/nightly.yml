@@ -166,8 +166,17 @@ jobs:
           set -e
 
           echo "Fetching previous release..."
-          PREV_RELEASE=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases" \
-            | jq -r '[.[] | select(.prerelease == true and (.tag_name | startswith("nightly-")))] | .[0]')
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases")
+
+          # Check if the response is valid JSON
+          if ! echo "$RELEASES_JSON" | jq empty 2>/dev/null; then
+            echo "Error: Failed to fetch releases from GitHub API or invalid JSON response."
+            echo "Response: $RELEASES_JSON"
+            echo "Skipping delta creation."
+            exit 0
+          fi
+
+          PREV_RELEASE=$(echo "$RELEASES_JSON" | jq -r '[.[] | select(.prerelease == true and (.tag_name | startswith("nightly-")))] | .[0]')
 
           if [ "$PREV_RELEASE" == "null" ] || [ -z "$PREV_RELEASE" ]; then
             echo "No previous release found. Skipping delta creation."
@@ -279,41 +288,42 @@ jobs:
           # Use the timestamp from the generate-timestamp job
           echo "value=${{ needs.generate-timestamp.outputs.timestamp }}" >> $GITHUB_OUTPUT
 
-#      - name: Create Github release
-#        if: steps.changelog.outputs.has_changes == 'true'
-#        uses: softprops/action-gh-release@v1
-#        with:
-#          name: Nightly Build ${{ steps.date.outputs.value }}
-#          tag_name: nightly-${{ steps.date.outputs.value }}
-#          prerelease: true
-#          files: |
-#            artifacts/**/*
-#          body: |
-#            🌙 Nightly build of LibreScoot (version ${{ steps.date.outputs.value }})
-#            
-#            ⚠️ **WARNING: EXPERIMENTAL BUILD - DO NOT USE ON REAL HARDWARE** ⚠️
-#            
-#            This is an automated nightly build with version ${{ steps.date.outputs.value }} from commit ${{ github.sha }}. These builds are intended for development and testing purposes only.
-#            
-#            ## Changelog
-#            ${{ steps.changelog.outputs.content }}
-#            
-#            Build completed at: ${{ github.event.repository.updated_at }}
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#
-#      - name: Notify Discord
-#        if: success() && steps.changelog.outputs.has_changes == 'true'
-#        uses: rjstone/discord-webhook-notify@v1
-#        with:
-#          severity: info
-#          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
-#          username: "LibreScoot Nightly Build"
-#          description: "🌙 New nightly build has been uploaded!"
-#          details: |
-#            **Release:** [Nightly Build ${{ steps.date.outputs.value }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/nightly-${{ steps.date.outputs.value }})
-#
-#            ⚠️ **WARNING: EXPERIMENTAL BUILD - DO NOT USE ON REAL HARDWARE** ⚠️
-#            
-#            This is an automated nightly build with version ${{ steps.date.outputs.value }} from commit ${{ github.sha }}. These builds are intended for development and testing purposes only.
-#          color: '#3498db'
+      - name: Create Github release
+        if: steps.changelog.outputs.has_changes == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Nightly Build ${{ steps.date.outputs.value }}
+          tag_name: nightly-${{ steps.date.outputs.value }}
+          prerelease: true
+          files: |
+            artifacts/**/*
+          body: |
+            🌙 Nightly build of LibreScoot (version ${{ steps.date.outputs.value }})
+            
+            ⚠️ **WARNING: EXPERIMENTAL BUILD - DO NOT USE ON REAL HARDWARE** ⚠️
+            
+            This is an automated nightly build with version ${{ steps.date.outputs.value }} from commit ${{ github.sha }}. These builds are intended for development and testing purposes only.
+            
+            ## Changelog
+            ${{ steps.changelog.outputs.content }}
+            
+            Build completed at: ${{ github.event.repository.updated_at }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify Discord
+        if: success() && steps.changelog.outputs.has_changes == 'true'
+        uses: rjstone/discord-webhook-notify@v1
+        with:
+          severity: info
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+          username: "LibreScoot Nightly Build"
+          description: "🌙 New nightly build has been uploaded!"
+          details: |
+            **Release:** [Nightly Build ${{ steps.date.outputs.value }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/nightly-${{ steps.date.outputs.value }})
+
+            ⚠️ **WARNING: EXPERIMENTAL BUILD - DO NOT USE ON REAL HARDWARE** ⚠️
+            
+            This is an automated nightly build with version ${{ steps.date.outputs.value }} from commit ${{ github.sha }}. These builds are intended for development and testing purposes only.
+          color: '#3498db'
+
