@@ -142,7 +142,77 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install xdelta3
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xdelta3
+
+      - name: Create delta patches
+        run: |
+          set -e
+
+          echo "Fetching previous release..."
+          PREV_RELEASE=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases" \
+            | jq -r '[.[] | select(.prerelease == true and (.tag_name | startswith("nightly-")))] | .[0]')
+
+          if [ "$PREV_RELEASE" == "null" ] || [ -z "$PREV_RELEASE" ]; then
+            echo "No previous release found. Skipping delta creation."
+            exit 0
+          fi
+
+          PREV_TAG=$(echo "$PREV_RELEASE" | jq -r '.tag_name')
+          echo "Previous release: $PREV_TAG"
+
+          # Create directory for previous release files
+          mkdir -p previous_release
+
+          # Download previous .mender files for both dbc and mdb
+          for TARGET in dbc mdb; do
+            echo "Processing target: $TARGET"
+
+            # Find the previous .mender file URL
+            PREV_MENDER_URL=$(echo "$PREV_RELEASE" | jq -r ".assets[] | select(.name | endswith(\"${TARGET}.mender\")) | .browser_download_url")
+
+            if [ -z "$PREV_MENDER_URL" ] || [ "$PREV_MENDER_URL" == "null" ]; then
+              echo "  Warning: No previous .mender file found for $TARGET. Skipping delta."
+              continue
+            fi
+
+            echo "  Downloading previous .mender file..."
+            PREV_MENDER_FILE="previous_release/librescoot-${TARGET}-previous.mender"
+            curl -L -o "$PREV_MENDER_FILE" "$PREV_MENDER_URL"
+
+            # Find the new .mender file in artifacts
+            NEW_MENDER_FILE=$(find artifacts -name "*${TARGET}*.mender" -type f | head -n 1)
+
+            if [ -z "$NEW_MENDER_FILE" ]; then
+              echo "  Warning: No new .mender file found for $TARGET. Skipping delta."
+              continue
+            fi
+
+            echo "  Creating delta patch..."
+            echo "    Old: $PREV_MENDER_FILE"
+            echo "    New: $NEW_MENDER_FILE"
+
+            # Extract timestamp from new mender filename for output name
+            TIMESTAMP="${{ needs.generate-timestamp.outputs.timestamp }}"
+            OUTPUT_DELTA="artifacts/librescoot-${TARGET}-${TIMESTAMP}.delta"
+
+            # Ensure the output directory exists
+            mkdir -p "$(dirname "$OUTPUT_DELTA")"
+
+            # Create the delta patch
+            python3 mender-delta-create.py "$PREV_MENDER_FILE" "$NEW_MENDER_FILE" "$OUTPUT_DELTA"
+
+            echo "  ✓ Delta created: $OUTPUT_DELTA"
+          done
+
+          echo "Delta patch creation complete!"
+
       - name: Generate changelog
         id: changelog
         run: |

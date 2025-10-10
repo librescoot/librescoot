@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""
+Creates optimized delta patches between Mender update files by working at the
+filesystem level. Decompresses .tar.gz files before creating deltas for much
+better compression while maintaining checksum verification.
+
+Usage:
+    python3 mender-delta-create.py <old.mender> <new.mender> <output.delta>
+"""
+
+import sys
+import os
+import tarfile
+import tempfile
+import shutil
+import subprocess
+import json
+import hashlib
+import gzip
+from pathlib import Path
+
+
+def calculate_sha256(filepath):
+    """Calculate SHA256 hash of a file."""
+    sha256_hash = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
+
+
+def extract_mender(mender_file, extract_dir):
+    """Extract a Mender file to a directory."""
+    print(f"Extracting {mender_file}...")
+    with tarfile.open(mender_file, 'r') as tar:
+        tar.extractall(extract_dir)
+    return extract_dir
+
+
+def decompress_gz(gz_file, output_file):
+    """Decompress a .gz file."""
+    with gzip.open(gz_file, 'rb') as f_in:
+        with open(output_file, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+
+def is_gzipped(filepath):
+    """Check if a file is gzip compressed."""
+    try:
+        with gzip.open(filepath, 'rb') as f:
+            f.read(1)
+        return True
+    except:
+        return False
+
+
+def create_xdelta_patch(old_file, new_file, patch_file):
+    """Create an xdelta3 patch between two files."""
+    cmd = ['xdelta3', '-e', '-9', '-s', old_file, new_file, patch_file]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise Exception(f"xdelta3 failed: {result.stderr}")
+    return patch_file
+
+
+def process_file_for_delta(filepath, work_dir, file_id):
+    """
+    Process a file for delta creation. If it's a .tar.gz or .gz file,
+    decompress it first to enable better delta compression.
+    Returns (processed_path, metadata)
+    """
+    filename = os.path.basename(filepath)
+    metadata = {
+        'original_name': filename,
+        'compressed': False,
+        'sha256': calculate_sha256(filepath)
+    }
+
+    # Check if file is gzipped
+    if filename.endswith('.gz') and is_gzipped(filepath):
+        # Decompress for better delta
+        decompressed_path = os.path.join(work_dir, f"{file_id}.decompressed")
+        decompress_gz(filepath, decompressed_path)
+        metadata['compressed'] = True
+        metadata['decompressed_sha256'] = calculate_sha256(decompressed_path)
+        metadata['original_size'] = os.path.getsize(filepath)
+        metadata['decompressed_size'] = os.path.getsize(decompressed_path)
+        print(f"    Decompressed: {filename} ({metadata['original_size']:,} → {metadata['decompressed_size']:,} bytes)")
+        return decompressed_path, metadata
+    else:
+        # Use as-is
+        metadata['size'] = os.path.getsize(filepath)
+        return filepath, metadata
+
+
+def get_file_list(directory):
+    """Get list of all files in directory with relative paths."""
+    files = {}
+    base_path = Path(directory)
+    for filepath in base_path.rglob('*'):
+        if filepath.is_file():
+            rel_path = filepath.relative_to(base_path)
+            files[str(rel_path)] = {
+                'size': filepath.stat().st_size,
+                'sha256': calculate_sha256(filepath)
+            }
+    return files
+
+
+def create_delta_patch(old_mender, new_mender, output_delta):
+    """Create a delta patch between old and new Mender files."""
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        old_dir = os.path.join(temp_dir, 'old')
+        new_dir = os.path.join(temp_dir, 'new')
+        delta_dir = os.path.join(temp_dir, 'delta')
+        work_dir = os.path.join(temp_dir, 'work')
+
+        os.makedirs(old_dir)
+        os.makedirs(new_dir)
+        os.makedirs(delta_dir)
+        os.makedirs(work_dir)
+
+        # Extract both Mender files
+        extract_mender(old_mender, old_dir)
+        extract_mender(new_mender, new_dir)
+
+        # Get file lists
+        old_files = get_file_list(old_dir)
+        new_files = get_file_list(new_dir)
+
+        # Extract filesystem payload checksums from Mender artifacts for verification
+        def get_payload_checksum(mender_dir, label):
+            """Extract the rootfs-image.checksum from a Mender artifact."""
+            header_path = os.path.join(mender_dir, 'header.tar.gz')
+            if not os.path.exists(header_path):
+                print(f"  Warning: No header.tar.gz in {label} artifact")
+                return None
+
+            header_extract = os.path.join(work_dir, f'{label}_header_extract')
+            os.makedirs(header_extract, exist_ok=True)
+
+            with tarfile.open(header_path, 'r:gz') as tar:
+                tar.extractall(header_extract)
+
+            # Find type-info
+            for root, dirs, files in os.walk(header_extract):
+                if 'type-info' in files:
+                    with open(os.path.join(root, 'type-info'), 'r') as f:
+                        type_info = json.load(f)
+                        return type_info.get('artifact_provides', {}).get('rootfs-image.checksum')
+
+            return None
+
+        old_payload_checksum = get_payload_checksum(old_dir, 'old')
+        new_payload_checksum = get_payload_checksum(new_dir, 'new')
+
+        # Analyze differences
+        metadata = {
+            'old_mender_sha256': calculate_sha256(old_mender),
+            'new_mender_sha256': calculate_sha256(new_mender),
+            'old_payload_checksum': old_payload_checksum,
+            'new_payload_checksum': new_payload_checksum,
+            'version': 2,  # Version 2 format with filesystem-aware deltas
+            'changes': {}
+        }
+
+        if old_payload_checksum:
+            print(f"Old filesystem payload: {old_payload_checksum[:16]}...")
+        if new_payload_checksum:
+            print(f"New filesystem payload: {new_payload_checksum[:16]}...")
+
+        patches_dir = os.path.join(delta_dir, 'patches')
+        new_files_dir = os.path.join(delta_dir, 'new_files')
+        os.makedirs(patches_dir)
+        os.makedirs(new_files_dir)
+
+        print("\nAnalyzing differences...")
+
+        # Check for modified and new files
+        for rel_path, new_info in new_files.items():
+            old_file_path = os.path.join(old_dir, rel_path)
+            new_file_path = os.path.join(new_dir, rel_path)
+
+            if rel_path in old_files:
+                # File exists in both - check if modified
+                if old_files[rel_path]['sha256'] != new_info['sha256']:
+                    print(f"  Modified: {rel_path}")
+
+                    # Process files (decompress if needed)
+                    old_processed, old_meta = process_file_for_delta(
+                        old_file_path, work_dir, f"old_{rel_path.replace('/', '_')}"
+                    )
+                    new_processed, new_meta = process_file_for_delta(
+                        new_file_path, work_dir, f"new_{rel_path.replace('/', '_')}"
+                    )
+
+                    # Create xdelta patch on processed files
+                    patch_name = rel_path.replace('/', '_').replace('\\', '_') + '.xdelta'
+                    patch_path = os.path.join(patches_dir, patch_name)
+                    os.makedirs(os.path.dirname(patch_path), exist_ok=True)
+
+                    create_xdelta_patch(old_processed, new_processed, patch_path)
+
+                    patch_size = os.path.getsize(patch_path)
+                    print(f"    Patch size: {patch_size:,} bytes")
+
+                    metadata['changes'][rel_path] = {
+                        'type': 'modified',
+                        'patch': patch_name,
+                        'patch_size': patch_size,
+                        'old_sha256': old_files[rel_path]['sha256'],
+                        'new_sha256': new_info['sha256'],
+                        'old_size': old_files[rel_path]['size'],
+                        'new_size': new_info['size'],
+                        'old_meta': old_meta,
+                        'new_meta': new_meta
+                    }
+                else:
+                    print(f"  Unchanged: {rel_path}")
+                    metadata['changes'][rel_path] = {
+                        'type': 'unchanged',
+                        'sha256': new_info['sha256'],
+                        'size': new_info['size']
+                    }
+            else:
+                # New file
+                print(f"  New: {rel_path}")
+
+                # Copy new file to delta package
+                new_file_dest = os.path.join(new_files_dir, rel_path)
+                os.makedirs(os.path.dirname(new_file_dest), exist_ok=True)
+                shutil.copy2(new_file_path, new_file_dest)
+
+                metadata['changes'][rel_path] = {
+                    'type': 'new',
+                    'sha256': new_info['sha256'],
+                    'size': new_info['size']
+                }
+
+        # Check for deleted files
+        for rel_path in old_files:
+            if rel_path not in new_files:
+                print(f"  Deleted: {rel_path}")
+                metadata['changes'][rel_path] = {
+                    'type': 'deleted'
+                }
+
+        # Save metadata
+        metadata_file = os.path.join(delta_dir, 'metadata.json')
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, indent=2, fp=f)
+
+        # Create delta tar package
+        print(f"\nCreating delta package: {output_delta}")
+        with tarfile.open(output_delta, 'w:gz') as tar:
+            tar.add(delta_dir, arcname='.')
+
+        # Calculate statistics
+        delta_size = os.path.getsize(output_delta)
+        old_size = os.path.getsize(old_mender)
+        new_size = os.path.getsize(new_mender)
+
+        print(f"\n✓ Delta patch created successfully!")
+        print(f"  Old Mender size:   {old_size:,} bytes ({old_size / 1024 / 1024:.2f} MB)")
+        print(f"  New Mender size:   {new_size:,} bytes ({new_size / 1024 / 1024:.2f} MB)")
+        print(f"  Delta patch size:  {delta_size:,} bytes ({delta_size / 1024 / 1024:.2f} MB)")
+        print(f"  Compression ratio: {(delta_size / new_size * 100):.1f}%")
+        print(f"  Bandwidth saved:   {(new_size - delta_size):,} bytes ({(new_size - delta_size) / 1024 / 1024:.2f} MB)")
+
+
+def main():
+    if len(sys.argv) != 4:
+        print("Usage: python3 mender-delta-create-v2.py <old.mender> <new.mender> <output.delta>")
+        sys.exit(1)
+
+    old_mender = sys.argv[1]
+    new_mender = sys.argv[2]
+    output_delta = sys.argv[3]
+
+    # Validate inputs
+    if not os.path.exists(old_mender):
+        print(f"Error: Old Mender file not found: {old_mender}")
+        sys.exit(1)
+
+    if not os.path.exists(new_mender):
+        print(f"Error: New Mender file not found: {new_mender}")
+        sys.exit(1)
+
+    # Check if xdelta3 is available
+    if shutil.which('xdelta3') is None:
+        print("Error: xdelta3 is not installed or not in PATH")
+        sys.exit(1)
+
+    try:
+        create_delta_patch(old_mender, new_mender, output_delta)
+    except Exception as e:
+        print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
