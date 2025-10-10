@@ -138,13 +138,13 @@ jobs:
     if: ${{ (needs.check-changes.outputs.has_changes == 'true' && github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/scarthgap') }}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Install xdelta3
         run: |
