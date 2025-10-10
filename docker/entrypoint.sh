@@ -164,7 +164,7 @@ LICENSE_FLAGS_ACCEPTED += "synaptics-killswitch"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
 # EXTRA_IMAGE_FEATURES = "debug-tweaks"
 DEFAULT_TIMEZONE = "Europe/Berlin"
-EOF
+EOL
 elif [ "$TARGET" == "dbc" ]; then
     # dbc
     cat > /yocto/build/conf/bblayers.conf << 'EOL'
