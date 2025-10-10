@@ -5,6 +5,7 @@ if [ -z "$1" ]; then
     echo "Usage: $0 <target> [branch]"
     echo "Example: $0 mdb"
     echo "         $0 dbc"
+    echo "         $0 rpi5"
     echo "         $0 mdb feature-branch"
     exit 1
 fi
