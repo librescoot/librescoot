@@ -302,9 +302,19 @@ if [ -n "${PACKAGE}" ]; then
     echo "Building specific package: ${PACKAGE}"
     bitbake "${PACKAGE}" --continue
 else
-    echo "Building full image: librescoot-${TARGET}-image"
-    if [ "${TARGET}" = "dbc" ]; then
+    # Determine the image name based on TARGET
+    if [ "${TARGET}" = "rpi5" ]; then
+        IMAGE_NAME="librescoot-dbc-image"
+    else
+        IMAGE_NAME="librescoot-${TARGET}-image"
+    fi
+
+    echo "Building full image: ${IMAGE_NAME}"
+
+    # Clean scootui for both dbc and rpi5 targets
+    if [ "${TARGET}" = "dbc" ] || [ "${TARGET}" = "rpi5" ]; then
         bitbake -c clean scootui
     fi
-    bitbake "librescoot-${TARGET}-image" --continue
+
+    bitbake "${IMAGE_NAME}" --continue
 fi
