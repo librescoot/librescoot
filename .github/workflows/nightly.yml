@@ -79,10 +79,19 @@ jobs:
     name: Build Firmware (${{ matrix.target }})
     needs: [check-changes, generate-timestamp]
     if: ${{ needs.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ${{ matrix.target }}
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       matrix:
-        target: [mdb, dbc]
+        include:
+          - target: mdb
+            runs_on: mdb
+            variant_id: unu-mdb
+          - target: dbc
+            runs_on: dbc
+            variant_id: unu-dbc
+          - target: rpi5
+            runs_on: rpi5
+            variant_id: librescoot-dbc-rpi5
       fail-fast: false
     steps:
       - name: Checkout repository
@@ -114,12 +123,18 @@ jobs:
             cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
             cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
             sudo rm -f yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz
-          else
+          elif [ "${{ matrix.target }}" = "dbc" ]; then
             sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
             sudo gzip -f -k -9 yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg
             cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
             cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
             sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
+          else
+            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg.gz
+            sudo gzip -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
+            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg.gz
           fi
           ls -l artifacts/*
 
@@ -189,8 +204,8 @@ jobs:
           # Create directory for previous release files
           mkdir -p previous_release
 
-          # Download previous .mender files for both dbc and mdb
-          for TARGET in dbc mdb; do
+          # Download previous .mender files for all targets
+          for TARGET in dbc mdb rpi5; do
             echo "Processing target: $TARGET"
 
             # Find the previous .mender file URL (matches pattern: librescoot-TARGET-TIMESTAMP.mender)
