@@ -109,17 +109,17 @@ jobs:
           sudo rm -rf artifacts/*
           mkdir -p artifacts/${{ matrix.target }}
           if [ "${{ matrix.target }}" = "mdb" ]; then
-            sudo rm -f yocto/build/tmp-glibc/deploy/images/librescoot-mdb/librescoot-mdb-image-librescoot-mdb-*.sdimg.gz
-            sudo gzip -f -k -9 yocto/build/tmp-glibc/deploy/images/librescoot-mdb/librescoot-mdb-image-librescoot-mdb-*.sdimg
-            cp yocto/build/tmp-glibc/deploy/images/librescoot-mdb/librescoot-mdb-image-librescoot-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
-            cp yocto/build/tmp-glibc/deploy/images/librescoot-mdb/librescoot-mdb-image-librescoot-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
-            sudo rm -f yocto/build/tmp-glibc/deploy/images/librescoot-mdb/librescoot-mdb-image-librescoot-mdb-*.sdimg.gz
+            sudo rm -f yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz
+            sudo gzip -f -k -9 yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg
+            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
+            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
+            sudo rm -f yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz
           else
-            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.sdimg.gz
-            sudo gzip -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.sdimg
-            cp yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
-            cp yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
-            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc/librescoot-dbc-image-librescoot-dbc-*.sdimg.gz
+            sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
+            sudo gzip -f -k -9 yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg
+            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
+            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
+            sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
           fi
           ls -l artifacts/*
 
