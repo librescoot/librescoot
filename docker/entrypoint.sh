@@ -142,7 +142,7 @@ BBLAYERS += "${BSPDIR}/sources/meta-virtualization"
 EOL
     echo "Overwriting local.conf..."
     cat > /yocto/build/conf/local.conf << EOL
-MACHINE ??= 'librescoot-rpi5'
+MACHINE ??= 'librescoot-dbc-rpi5'
 DISTRO ?= 'librescoot-dbc'
 LIBRESCOOT_VERSION = "${LIBRESCOOT_VERSION:-0.0.1}"
 MENDER_ARTIFACT_NAME = "release-${LIBRESCOOT_VERSION:-1}"
@@ -212,7 +212,7 @@ BBLAYERS += "${BSPDIR}/sources/meta-virtualization"
 EOL
     echo "Overwriting local.conf..."
     cat > /yocto/build/conf/local.conf << EOL
-MACHINE ??= 'librescoot-dbc'
+MACHINE ??= 'unu-dbc'
 DISTRO ?= 'librescoot-dbc'
 LIBRESCOOT_VERSION = "${LIBRESCOOT_VERSION:-0.0.1}"
 MENDER_ARTIFACT_NAME = "release-${LIBRESCOOT_VERSION:-1}"
@@ -265,7 +265,7 @@ BBLAYERS = " \
 EOL
     echo "Overwriting local.conf..."
     cat > /yocto/build/conf/local.conf << EOL
-MACHINE ??= 'librescoot-mdb'
+MACHINE ??= 'unu-mdb'
 DISTRO ?= 'librescoot-mdb'
 LIBRESCOOT_VERSION = "${LIBRESCOOT_VERSION:-0.0.1}"
 MENDER_ARTIFACT_NAME = "release-${LIBRESCOOT_VERSION:-1}"
