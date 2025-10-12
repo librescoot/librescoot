@@ -120,20 +120,20 @@ jobs:
           if [ "${{ matrix.target }}" = "mdb" ]; then
             sudo rm -f yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz
             sudo gzip -f -k -9 yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg
-            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
-            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
+            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
+            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
             sudo rm -f yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz
           elif [ "${{ matrix.target }}" = "dbc" ]; then
             sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
             sudo gzip -f -k -9 yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg
-            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
-            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
+            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
+            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
             sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
           else
             sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg.gz
             sudo gzip -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg
-            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
-            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
             sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg.gz
           fi
           ls -l artifacts/*
@@ -141,7 +141,7 @@ jobs:
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: librescoot-${{ matrix.target }}-${{ needs.generate-timestamp.outputs.timestamp }}
+          name: librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}
           path: artifacts/${{ matrix.target }}/*
           retention-days: 1
           compression-level: 0
@@ -204,27 +204,34 @@ jobs:
           # Create directory for previous release files
           mkdir -p previous_release
 
+          # Map targets to variant_ids
+          declare -A VARIANT_MAP
+          VARIANT_MAP[mdb]="unu-mdb"
+          VARIANT_MAP[dbc]="unu-dbc"
+          VARIANT_MAP[rpi5]="librescoot-dbc-rpi5"
+
           # Download previous .mender files for all targets
           for TARGET in dbc mdb rpi5; do
-            echo "Processing target: $TARGET"
+            VARIANT_ID="${VARIANT_MAP[$TARGET]}"
+            echo "Processing target: $TARGET (variant_id: $VARIANT_ID)"
 
-            # Find the previous .mender file URL (matches pattern: librescoot-TARGET-TIMESTAMP.mender)
-            PREV_MENDER_URL=$(echo "$PREV_RELEASE" | jq -r ".assets[] | select(.name | contains(\"${TARGET}\") and endswith(\".mender\")) | .browser_download_url")
+            # Find the previous .mender file URL (matches pattern: librescoot-VARIANT_ID-TIMESTAMP.mender)
+            PREV_MENDER_URL=$(echo "$PREV_RELEASE" | jq -r ".assets[] | select(.name | contains(\"${VARIANT_ID}\") and endswith(\".mender\")) | .browser_download_url")
 
             if [ -z "$PREV_MENDER_URL" ] || [ "$PREV_MENDER_URL" == "null" ]; then
-              echo "  Warning: No previous .mender file found for $TARGET. Skipping delta."
+              echo "  Warning: No previous .mender file found for variant_id $VARIANT_ID. Skipping delta."
               continue
             fi
 
             echo "  Downloading previous .mender file..."
-            PREV_MENDER_FILE="previous_release/librescoot-${TARGET}-previous.mender"
+            PREV_MENDER_FILE="previous_release/librescoot-${VARIANT_ID}-previous.mender"
             curl -L -o "$PREV_MENDER_FILE" "$PREV_MENDER_URL"
 
             # Find the new .mender file in artifacts
-            NEW_MENDER_FILE=$(find artifacts -name "*${TARGET}*.mender" -type f | head -n 1)
+            NEW_MENDER_FILE=$(find artifacts -name "*${VARIANT_ID}*.mender" -type f | head -n 1)
 
             if [ -z "$NEW_MENDER_FILE" ]; then
-              echo "  Warning: No new .mender file found for $TARGET. Skipping delta."
+              echo "  Warning: No new .mender file found for variant_id $VARIANT_ID. Skipping delta."
               continue
             fi
 
@@ -234,7 +241,7 @@ jobs:
 
             # Extract timestamp from new mender filename for output name
             TIMESTAMP="${{ needs.generate-timestamp.outputs.timestamp }}"
-            OUTPUT_DELTA="artifacts/librescoot-${TARGET}-${TIMESTAMP}.delta"
+            OUTPUT_DELTA="artifacts/librescoot-${VARIANT_ID}-${TIMESTAMP}.delta"
 
             # Ensure the output directory exists
             mkdir -p "$(dirname "$OUTPUT_DELTA")"
