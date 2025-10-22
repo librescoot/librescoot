@@ -89,9 +89,9 @@ jobs:
           - target: dbc
             runs_on: dbc
             variant_id: unu-dbc
-          - target: rpi5
+          - target: rpi4
             runs_on: rpi5
-            variant_id: librescoot-dbc-rpi5
+            variant_id: librescoot-dbc-rpi4
       fail-fast: false
     steps:
       - name: Checkout repository
@@ -130,11 +130,11 @@ jobs:
             cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
             sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
           else
-            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg.gz
-            sudo gzip -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg
-            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
-            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
-            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi5/librescoot-dbc-image-librescoot-dbc-rpi5-*.sdimg.gz
+            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
+            sudo gzip -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
+            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
           fi
           ls -l artifacts/*
 
@@ -208,10 +208,10 @@ jobs:
           declare -A VARIANT_MAP
           VARIANT_MAP[mdb]="unu-mdb"
           VARIANT_MAP[dbc]="unu-dbc"
-          VARIANT_MAP[rpi5]="librescoot-dbc-rpi5"
+          VARIANT_MAP[rpi4]="librescoot-dbc-rpi4"
 
           # Download previous .mender files for all targets
-          for TARGET in dbc mdb rpi5; do
+          for TARGET in dbc mdb rpi4; do
             VARIANT_ID="${VARIANT_MAP[$TARGET]}"
             echo "Processing target: $TARGET (variant_id: $VARIANT_ID)"
 

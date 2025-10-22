@@ -92,8 +92,8 @@ TARGET="${TARGET:-mdb}"
 # Overwrite bblayers.conf
 echo "Overwriting bblayers.conf..."
 
-if [ "$TARGET" == "rpi5" ]; then
-    # rpi5
+if [ "$TARGET" == "rpi4" ]; then
+    # rpi4
     cat > /yocto/build/conf/bblayers.conf << 'EOL'
 LCONF_VERSION = "7"
 
@@ -142,7 +142,7 @@ BBLAYERS += "${BSPDIR}/sources/meta-virtualization"
 EOL
     echo "Overwriting local.conf..."
     cat > /yocto/build/conf/local.conf << EOL
-MACHINE ??= 'librescoot-dbc-rpi5'
+MACHINE ??= 'librescoot-dbc-rpi4'
 DISTRO ?= 'librescoot-dbc'
 LIBRESCOOT_VERSION = "${LIBRESCOOT_VERSION:-0.0.1}"
 MENDER_ARTIFACT_NAME = "release-${LIBRESCOOT_VERSION:-1}"
@@ -303,7 +303,7 @@ if [ -n "${PACKAGE}" ]; then
     bitbake "${PACKAGE}" --continue
 else
     # Determine the image name based on TARGET
-    if [ "${TARGET}" = "rpi5" ]; then
+    if [ "${TARGET}" = "rpi4" ]; then
         IMAGE_NAME="librescoot-dbc-image"
     else
         IMAGE_NAME="librescoot-${TARGET}-image"
@@ -311,8 +311,8 @@ else
 
     echo "Building full image: ${IMAGE_NAME}"
 
-    # Clean scootui for both dbc and rpi5 targets
-    if [ "${TARGET}" = "dbc" ] || [ "${TARGET}" = "rpi5" ]; then
+    # Clean scootui for both dbc and rpi4 targets
+    if [ "${TARGET}" = "dbc" ] || [ "${TARGET}" = "rpi4" ]; then
         bitbake -c clean scootui
     fi
 
