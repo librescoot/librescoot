@@ -41,6 +41,9 @@ jobs:
             "librescoot/ums-service"
             "librescoot/settings-service"
             "librescoot/dbc-backlight-service"
+            "librescoot/lsc"
+            "librescoot/alarm-service"
+            "librescoot/carplay-service"
             "rescoot/radio-gaga"
           )
 
@@ -273,6 +276,9 @@ jobs:
             "librescoot/ums-service"
             "librescoot/settings-service"
             "librescoot/dbc-backlight-service"
+            "librescoot/lsc"
+            "librescoot/alarm-service"
+            "librescoot/carplay-service"
             "rescoot/radio-gaga"
           )
           
