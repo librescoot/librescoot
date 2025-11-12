@@ -40,6 +40,7 @@ sudo docker run -it --rm \
     --name "yocto-build" \
     -e TARGET="${TARGET}" \
     -e BRANCH="${BRANCH}" \
+    -e META_LIBRESCOOT_BRANCH="${META_LIBRESCOOT_BRANCH}" \
     -e LIBRESCOOT_VERSION="${LIBRESCOOT_VERSION}" \
     -e PACKAGE="${PACKAGE}" \
     -e SCOOTUI_VERSION_UPDATE="${SCOOTUI_VERSION_UPDATE}" \

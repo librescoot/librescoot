@@ -5,7 +5,9 @@ cd /yocto
 
 # Set default branch if not provided
 BRANCH="${BRANCH:-scarthgap}"
-echo "Using branch: ${BRANCH}"
+META_LIBRESCOOT_BRANCH="${META_LIBRESCOOT_BRANCH:-scarthgap}"
+echo "Using Yocto branch: ${BRANCH}"
+echo "Using meta-librescoot branch: ${META_LIBRESCOOT_BRANCH}"
 
 # Configure Git globally
 echo "Configuring Git..."
@@ -68,7 +70,7 @@ git config --global --add safe.directory /yocto/sources/meta-librescoot
 clone_layer "meta-mender" "scarthgap" "https://github.com/mendersoftware/meta-mender" "sources/meta-mender"
 clone_layer "meta-mender-community" "scarthgap" "https://github.com/mendersoftware/meta-mender-community.git" "sources/meta-mender-community"
 clone_layer "meta-flutter" "scarthgap" "https://github.com/meta-flutter/meta-flutter.git" "sources/meta-flutter"
-clone_layer "meta-librescoot" "${BRANCH}" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
+clone_layer "meta-librescoot" "${META_LIBRESCOOT_BRANCH}" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
 clone_layer "meta-openjdk-temurin" "scarthgap" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
 clone_layer "meta-raspberrypi" "1091bde25e9ebaea33114edb85e4aee931d105f3" "https://github.com/agherzan/meta-raspberrypi.git" "sources/meta-raspberrypi"
 clone_layer "meta-lts-mixins" "a44882db02a0ed0f149371831bfbe067665eb42b" "https://git.yoctoproject.org/meta-lts-mixins" "sources/meta-lts-mixins"
