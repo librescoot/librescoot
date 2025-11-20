@@ -1,4 +1,4 @@
-name: Nightly Builds
+name: Builds
 
 permissions:
   contents: write
@@ -6,7 +6,19 @@ permissions:
 on:
   schedule:
     - cron: '0 1 * * *'
-  workflow_dispatch:  # Allow manual triggers
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Build Channel'
+        required: true
+        default: 'nightly'
+        type: choice
+        options:
+          - nightly
+          - testing
 
 jobs:
   check-changes:
@@ -50,16 +62,23 @@ jobs:
           SINCE="${{ steps.time.outputs.since }}"
           
           HAS_CHANGES=false
-          for REPO in "${REPOS[@]}"; do
-            echo "Checking repo ${REPO}..."
-            COMMITS=$(curl -s "https://api.github.com/repos/${REPO}/commits?since=${SINCE}")
-            echo "Found $(echo "$COMMITS" | jq 'length') commits since $SINCE"
-            if [ "$(echo "$COMMITS" | jq 'length')" -gt 0 ]; then
-              HAS_CHANGES=true
-              echo "Found new commits in ${REPO}"
-              break
-            fi
-          done
+          
+          # Always build if manually triggered
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            HAS_CHANGES=true
+            echo "Manual trigger detected. Forcing build."
+          else
+            for REPO in "${REPOS[@]}"; do
+              echo "Checking repo ${REPO}..."
+              COMMITS=$(curl -s "https://api.github.com/repos/${REPO}/commits?since=${SINCE}")
+              echo "Found $(echo "$COMMITS" | jq 'length') commits since $SINCE"
+              if [ "$(echo "$COMMITS" | jq 'length')" -gt 0 ]; then
+                HAS_CHANGES=true
+                echo "Found new commits in ${REPO}"
+                break
+              fi
+            done
+          fi
           
           echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
           echo "has_changes=${HAS_CHANGES}"
@@ -78,10 +97,61 @@ jobs:
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
           echo "Generated timestamp: $TIMESTAMP"
 
+  determine-version:
+    name: Determine Version
+    needs: [generate-timestamp]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+      tag: ${{ steps.set-version.outputs.tag }}
+      prerelease: ${{ steps.set-version.outputs.prerelease }}
+      channel: ${{ steps.set-version.outputs.channel }}
+    steps:
+      - name: Set version and tag
+        id: set-version
+        run: |
+          TIMESTAMP="${{ needs.generate-timestamp.outputs.timestamp }}"
+          
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+             # Triggered by tag
+             TAG_NAME=${GITHUB_REF#refs/tags/}
+             CHANNEL="stable"
+             VERSION="$TAG_NAME"
+             TAG="$TAG_NAME"
+             PRERELEASE="false"
+          else
+             # Manual or Schedule
+             CHANNEL="${{ inputs.channel }}"
+             if [ -z "$CHANNEL" ]; then
+               CHANNEL="nightly"
+             fi
+             
+             if [ "$CHANNEL" == "testing" ]; then
+               VERSION="testing-${TIMESTAMP}"
+               TAG="$VERSION"
+               PRERELEASE="true"
+             else
+               # Nightly
+               VERSION="nightly-${TIMESTAMP}"
+               TAG="$VERSION"
+               PRERELEASE="true"
+             fi
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
+          echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
+          
+          echo "Channel: $CHANNEL"
+          echo "Version: $VERSION"
+          echo "Tag: $TAG"
+          echo "Prerelease: $PRERELEASE"
+
   build:
     name: Build Firmware (${{ matrix.target }})
-    needs: [check-changes, generate-timestamp]
-    if: ${{ needs.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch' }}
+    needs: [check-changes, determine-version]
+    if: ${{ needs.check-changes.outputs.has_changes == 'true' }}
     runs-on: ${{ matrix.runs_on }}
     strategy:
       matrix:
@@ -113,30 +183,33 @@ jobs:
           sed -i 's/docker run -it/docker run -i/' build.sh
           sed -i 's/docker run -it/docker run -i/' interactive.sh
           sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
-          # Use the timestamp generated in the previous job
-          LIBRESCOOT_VERSION="${{ needs.generate-timestamp.outputs.timestamp }}" ./build.sh ${{ matrix.target }}
+          
+          # Use the determined version
+          BUILD_CHANNEL="${{ needs.determine-version.outputs.channel }}" LIBRESCOOT_VERSION="${{ needs.determine-version.outputs.version }}" ./build.sh ${{ matrix.target }}
 
       - name: Prepare artifacts
         run: |
           sudo rm -rf artifacts/*
           mkdir -p artifacts/${{ matrix.target }}
+          VERSION="${{ needs.determine-version.outputs.version }}"
+          
           if [ "${{ matrix.target }}" = "mdb" ]; then
             sudo rm -f yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz
             sudo gzip -f -k -9 yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg
-            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
-            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
+            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
             sudo rm -f yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz
           elif [ "${{ matrix.target }}" = "dbc" ]; then
             sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
             sudo gzip -f -k -9 yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg
-            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
-            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
+            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
             sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
           else
             sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
             sudo gzip -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg
-            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.sdimg.gz
-            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}.mender
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
             sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
           fi
           ls -l artifacts/*
@@ -144,16 +217,16 @@ jobs:
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: librescoot-${{ matrix.variant_id }}-${{ needs.generate-timestamp.outputs.timestamp }}
+          name: librescoot-${{ matrix.variant_id }}-${{ needs.determine-version.outputs.version }}
           path: artifacts/${{ matrix.target }}/*
           retention-days: 1
           compression-level: 0
 
   create-release:
     name: Create Release
-    needs: [check-changes, build, generate-timestamp]
-    # Only create releases for scheduled builds or manual triggers on the main branch (scarthgap)
-    if: ${{ (needs.check-changes.outputs.has_changes == 'true' && github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/scarthgap') }}
+    needs: [check-changes, build, determine-version]
+    # Only create releases for scheduled builds, manual triggers on main branch, or tag pushes
+    if: ${{ needs.check-changes.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/scarthgap') || startsWith(github.ref, 'refs/tags/v')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -194,7 +267,18 @@ jobs:
             exit 0
           fi
 
-          PREV_RELEASE=$(echo "$RELEASES_JSON" | jq -r '[.[] | select(.prerelease == true and (.tag_name | startswith("nightly-")))] | .[0]')
+          # Determine previous release prefix based on channel
+          CHANNEL="${{ needs.determine-version.outputs.channel }}"
+          if [ "$CHANNEL" == "nightly" ]; then
+             PREFIX="nightly-"
+          elif [ "$CHANNEL" == "testing" ]; then
+             PREFIX="testing-"
+          elif [ "$CHANNEL" == "stable" ]; then
+             # Diff against latest stable release (v*)
+             PREFIX="v"
+          fi
+
+          PREV_RELEASE=$(echo "$RELEASES_JSON" | jq -r "[.[] | select(.prerelease == ${{ needs.determine-version.outputs.prerelease }} and (.tag_name | startswith(\"$PREFIX\")))] | .[0]")
 
           if [ "$PREV_RELEASE" == "null" ] || [ -z "$PREV_RELEASE" ]; then
             echo "No previous release found. Skipping delta creation."
@@ -218,7 +302,7 @@ jobs:
             VARIANT_ID="${VARIANT_MAP[$TARGET]}"
             echo "Processing target: $TARGET (variant_id: $VARIANT_ID)"
 
-            # Find the previous .mender file URL (matches pattern: librescoot-VARIANT_ID-TIMESTAMP.mender)
+            # Find the previous .mender file URL (matches pattern: librescoot-VARIANT_ID-VERSION.mender)
             PREV_MENDER_URL=$(echo "$PREV_RELEASE" | jq -r ".assets[] | select(.name | contains(\"${VARIANT_ID}\") and endswith(\".mender\")) | .browser_download_url")
 
             if [ -z "$PREV_MENDER_URL" ] || [ "$PREV_MENDER_URL" == "null" ]; then
@@ -242,9 +326,9 @@ jobs:
             echo "    Old: $PREV_MENDER_FILE"
             echo "    New: $NEW_MENDER_FILE"
 
-            # Extract timestamp from new mender filename for output name
-            TIMESTAMP="${{ needs.generate-timestamp.outputs.timestamp }}"
-            OUTPUT_DELTA="artifacts/librescoot-${VARIANT_ID}-${TIMESTAMP}.delta"
+            # Extract version from new mender filename for output name
+            VERSION="${{ needs.determine-version.outputs.version }}"
+            OUTPUT_DELTA="artifacts/librescoot-${VARIANT_ID}-${VERSION}.delta"
 
             # Ensure the output directory exists
             mkdir -p "$(dirname "$OUTPUT_DELTA")"
@@ -309,28 +393,21 @@ jobs:
 
           echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
 
-      - name: Set date tag
-        id: date
-        if: steps.changelog.outputs.has_changes == 'true'
-        run: |
-          # Use the timestamp from the generate-timestamp job
-          echo "value=${{ needs.generate-timestamp.outputs.timestamp }}" >> $GITHUB_OUTPUT
-
       - name: Create Github release
-        if: steps.changelog.outputs.has_changes == 'true'
+        if: steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
-          name: Nightly Build ${{ steps.date.outputs.value }}
-          tag_name: nightly-${{ steps.date.outputs.value }}
-          prerelease: true
+          name: ${{ needs.determine-version.outputs.channel }} Build ${{ needs.determine-version.outputs.version }}
+          tag_name: ${{ needs.determine-version.outputs.tag }}
+          prerelease: ${{ needs.determine-version.outputs.prerelease }}
           files: |
             artifacts/**/*
           body: |
-            🌙 Nightly build of LibreScoot (version ${{ steps.date.outputs.value }})
+            ${{ needs.determine-version.outputs.channel == 'nightly' && '🌙' || (needs.determine-version.outputs.channel == 'testing' && '🧪' || '🚀') }} ${{ needs.determine-version.outputs.channel }} build of LibreScoot (version ${{ needs.determine-version.outputs.version }})
             
-            ⚠️ **WARNING: EXPERIMENTAL BUILD - DO NOT USE ON REAL HARDWARE** ⚠️
+            ${{ needs.determine-version.outputs.prerelease == 'true' && '⚠️ **WARNING: EXPERIMENTAL BUILD - DO NOT USE ON REAL HARDWARE** ⚠️' || '' }}
             
-            This is an automated nightly build with version ${{ steps.date.outputs.value }} from commit ${{ github.sha }}. These builds are intended for development and testing purposes only.
+            This is a ${{ needs.determine-version.outputs.channel }} build with version ${{ needs.determine-version.outputs.version }} from commit ${{ github.sha }}.
             
             ## Changelog
             ${{ steps.changelog.outputs.content }}
@@ -338,4 +415,3 @@ jobs:
             Build completed at: ${{ github.event.repository.updated_at }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

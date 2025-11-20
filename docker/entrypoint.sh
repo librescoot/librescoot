@@ -3,6 +3,30 @@ set -ex
 
 cd /yocto
 
+# Source environment file based on BUILD_CHANNEL
+if [ "$BUILD_CHANNEL" = "nightly" ]; then
+    ENV_FILE="/yocto/nightly.env"
+    echo "Build channel is NIGHTLY. Using ${ENV_FILE}"
+elif [ "$BUILD_CHANNEL" = "testing" ] || [ "$BUILD_CHANNEL" = "stable" ]; then
+    ENV_FILE="/yocto/stable.env"
+    echo "Build channel is ${BUILD_CHANNEL^^}. Using ${ENV_FILE}"
+else
+    # Default fallback
+    ENV_FILE="/yocto/versions.env"
+    echo "Build channel not specified or unknown. Trying fallback to ${ENV_FILE}"
+fi
+
+if [ -f "$ENV_FILE" ]; then
+    echo "Sourcing ${ENV_FILE}..."
+    source "$ENV_FILE"
+elif [ -f "/usr/local/bin/$(basename $ENV_FILE)" ]; then
+    # Fallback if mounted or copied elsewhere
+    echo "Sourcing $(basename $ENV_FILE) from /usr/local/bin..."
+    source "/usr/local/bin/$(basename $ENV_FILE)"
+else
+    echo "Warning: Environment file ${ENV_FILE} not found."
+fi
+
 # Set default branch if not provided
 BRANCH="${BRANCH:-scarthgap}"
 META_LIBRESCOOT_BRANCH="${META_LIBRESCOOT_BRANCH:-scarthgap}"
@@ -67,13 +91,13 @@ clone_layer() {
 
 git config --global --add safe.directory /yocto/sources/meta-librescoot
 
-clone_layer "meta-mender" "scarthgap" "https://github.com/mendersoftware/meta-mender" "sources/meta-mender"
-clone_layer "meta-mender-community" "scarthgap" "https://github.com/mendersoftware/meta-mender-community.git" "sources/meta-mender-community"
-clone_layer "meta-flutter" "scarthgap" "https://github.com/meta-flutter/meta-flutter.git" "sources/meta-flutter"
-clone_layer "meta-librescoot" "${META_LIBRESCOOT_BRANCH}" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
-clone_layer "meta-openjdk-temurin" "scarthgap" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
-clone_layer "meta-raspberrypi" "1091bde25e9ebaea33114edb85e4aee931d105f3" "https://github.com/agherzan/meta-raspberrypi.git" "sources/meta-raspberrypi"
-clone_layer "meta-lts-mixins" "a44882db02a0ed0f149371831bfbe067665eb42b" "https://git.yoctoproject.org/meta-lts-mixins" "sources/meta-lts-mixins"
+clone_layer "meta-mender" "${LAYER_VERSION_meta_mender:-scarthgap}" "https://github.com/mendersoftware/meta-mender" "sources/meta-mender"
+clone_layer "meta-mender-community" "${LAYER_VERSION_meta_mender_community:-scarthgap}" "https://github.com/mendersoftware/meta-mender-community.git" "sources/meta-mender-community"
+clone_layer "meta-flutter" "${LAYER_VERSION_meta_flutter:-scarthgap}" "https://github.com/meta-flutter/meta-flutter.git" "sources/meta-flutter"
+clone_layer "meta-librescoot" "${LAYER_VERSION_meta_librescoot:-scarthgap}" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
+clone_layer "meta-openjdk-temurin" "${LAYER_VERSION_meta_openjdk_temurin:-scarthgap}" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
+clone_layer "meta-raspberrypi" "${LAYER_VERSION_meta_raspberrypi:-scarthgap}" "https://github.com/agherzan/meta-raspberrypi.git" "sources/meta-raspberrypi"
+clone_layer "meta-lts-mixins" "${LAYER_VERSION_meta_lts_mixins:-scarthgap}" "https://git.yoctoproject.org/meta-lts-mixins" "sources/meta-lts-mixins"
 
 # Determine LIBRESCOOT_VERSION - use environment variable if set, otherwise from meta-librescoot repository
 if [ -z "${LIBRESCOOT_VERSION}" ]; then
@@ -84,6 +108,26 @@ if [ -z "${LIBRESCOOT_VERSION}" ]; then
     echo "Using LibreScoot version from meta-librescoot: ${LIBRESCOOT_VERSION}"
 else
     echo "Using LibreScoot version from environment variable: ${LIBRESCOOT_VERSION}"
+fi
+
+# Apply SRCREV overrides from environment variables
+echo "Applying version overrides..."
+for var in $(compgen -v | grep '^SRCREV_'); do
+    val="${!var}"
+    if [ -n "$val" ]; then
+        # Convert SRCREV_package_name to SRCREV_pn-package-name
+        # Replace underscores with dashes in the package name part
+        pkg_name="${var#SRCREV_}"
+        pkg_name="${pkg_name//_/-}"
+        echo "Overriding ${pkg_name} with ${val}"
+        echo "SRCREV:pn-${pkg_name} = \"${val}\"" >> /yocto/build/conf/local.conf
+    fi
+done
+
+# Apply DISTRO_CODENAME override if set
+if [ -n "$DISTRO_CODENAME" ]; then
+    echo "Overriding DISTRO_CODENAME with ${DISTRO_CODENAME}"
+    echo "DISTRO_CODENAME = \"${DISTRO_CODENAME}\"" >> /yocto/build/conf/local.conf
 fi
 
 echo "Setting up build environment..."
