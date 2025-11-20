@@ -29,7 +29,8 @@ RUN chown -R yocto:yocto /yocto
 
 
 COPY docker/entrypoint.sh /usr/local/bin/
-COPY nightly.env stable.env /yocto/
+RUN mkdir -p /opt/yocto-env
+COPY nightly.env stable.env /opt/yocto-env/
 
 USER yocto
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -19,10 +19,10 @@ fi
 if [ -f "$ENV_FILE" ]; then
     echo "Sourcing ${ENV_FILE}..."
     source "$ENV_FILE"
-elif [ -f "/usr/local/bin/$(basename $ENV_FILE)" ]; then
+elif [ -f "/opt/yocto-env/$(basename $ENV_FILE)" ]; then
     # Fallback if mounted or copied elsewhere
-    echo "Sourcing $(basename $ENV_FILE) from /usr/local/bin..."
-    source "/usr/local/bin/$(basename $ENV_FILE)"
+    echo "Sourcing $(basename $ENV_FILE) from /opt/yocto-env..."
+    source "/opt/yocto-env/$(basename $ENV_FILE)"
 else
     echo "Warning: Environment file ${ENV_FILE} not found."
 fi
