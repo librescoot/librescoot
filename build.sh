@@ -28,7 +28,7 @@ echo "git_dirty: $git_dirty  image_exists: $image_exists"
 
 if [ $git_dirty = "true" -o $image_exists = "false" ]; then
     echo "Building Docker image ${IMAGE_NAME}..."
-    sudo docker build -t "${IMAGE_NAME}" ./docker
+    sudo docker build -t "${IMAGE_NAME}" -f ./docker/Dockerfile .
 else
     echo "Using existing Docker image ${IMAGE_NAME}."
 fi
