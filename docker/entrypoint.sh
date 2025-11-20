@@ -69,7 +69,7 @@ git config --global --add safe.directory /yocto/sources/meta-librescoot
 
 clone_layer "meta-mender" "scarthgap" "https://github.com/mendersoftware/meta-mender" "sources/meta-mender"
 clone_layer "meta-mender-community" "scarthgap" "https://github.com/mendersoftware/meta-mender-community.git" "sources/meta-mender-community"
-clone_layer "meta-flutter" "scarthgap" "https://github.com/meta-flutter/meta-flutter.git" "sources/meta-flutter"
+clone_layer "meta-flutter" "545eda504de8d9e7b7d2911898e891cb016b6693" "https://github.com/meta-flutter/meta-flutter.git" "sources/meta-flutter"
 clone_layer "meta-librescoot" "${META_LIBRESCOOT_BRANCH}" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
 clone_layer "meta-openjdk-temurin" "scarthgap" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
 clone_layer "meta-raspberrypi" "1091bde25e9ebaea33114edb85e4aee931d105f3" "https://github.com/agherzan/meta-raspberrypi.git" "sources/meta-raspberrypi"
