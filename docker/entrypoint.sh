@@ -130,6 +130,12 @@ if [ -n "$DISTRO_CODENAME" ]; then
     echo "DISTRO_CODENAME = \"${DISTRO_CODENAME}\"" >> /yocto/build/conf/local.conf
 fi
 
+# Apply SCOOTUI_VERSION_UPDATE if set (for scootui builds)
+if [ -n "$SCOOTUI_VERSION_UPDATE" ]; then
+    echo "Overriding scootui version with ${SCOOTUI_VERSION_UPDATE}"
+    echo "PV:pn-scootui = \"${SCOOTUI_VERSION_UPDATE}\"" >> /yocto/build/conf/local.conf
+fi
+
 echo "Setting up build environment..."
 DISTRO=librescoot-mdb source ./imx-setup-release.sh -b build
 
