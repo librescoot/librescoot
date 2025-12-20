@@ -11,9 +11,14 @@ elif [ "$BUILD_CHANNEL" = "testing" ] || [ "$BUILD_CHANNEL" = "stable" ]; then
     ENV_FILE="/yocto/stable.env"
     echo "Build channel is ${BUILD_CHANNEL^^}. Using ${ENV_FILE}"
 else
-    # Default fallback
-    ENV_FILE="/yocto/versions.env"
-    echo "Build channel not specified or unknown. Trying fallback to ${ENV_FILE}"
+    # Default fallback with cascading check
+    if [ -f "/yocto/versions.env" ]; then
+        ENV_FILE="/yocto/versions.env"
+        echo "Build channel not specified or unknown. Using ${ENV_FILE}"
+    else
+        ENV_FILE="/yocto/nightly.env"
+        echo "Build channel not specified and versions.env not found. Falling back to ${ENV_FILE}"
+    fi
 fi
 
 if [ -f "$ENV_FILE" ]; then
