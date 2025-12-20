@@ -59,11 +59,13 @@ clone_layer() {
         cd "$path"
     else
         cd "$path"
-        # Hard reset and clean first
-        git clean -fdx
-        git reset --hard HEAD
-        if [ -f .git/MERGE_HEAD ]; then
-            git merge --abort
+        # Only reset/clean if HEAD exists (repo has a valid checkout)
+        if git rev-parse --verify HEAD >/dev/null 2>&1; then
+            git clean -fdx
+            git reset --hard HEAD
+            if [ -f .git/MERGE_HEAD ]; then
+                git merge --abort
+            fi
         fi
         # Fetch all refs (branches, tags, etc.)
         git fetch origin --tags --force
