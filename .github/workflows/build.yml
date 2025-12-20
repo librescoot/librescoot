@@ -227,7 +227,7 @@ jobs:
     needs: [check-changes, build, determine-version]
     # Only create releases for scheduled builds, manual triggers on main branch, or tag pushes
     if: ${{ needs.check-changes.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/scarthgap') || startsWith(github.ref, 'refs/tags/v')) }}
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
