@@ -112,6 +112,9 @@ else
     echo "Using LibreScoot version from environment variable: ${LIBRESCOOT_VERSION}"
 fi
 
+echo "Setting up build environment..."
+DISTRO=librescoot-mdb source ./imx-setup-release.sh -b build
+
 # Apply SRCREV overrides from environment variables
 echo "Applying version overrides..."
 for var in $(compgen -v | grep '^SRCREV_'); do
@@ -137,9 +140,6 @@ if [ -n "$SCOOTUI_VERSION_UPDATE" ]; then
     echo "Overriding scootui version with ${SCOOTUI_VERSION_UPDATE}"
     echo "PV:pn-scootui = \"${SCOOTUI_VERSION_UPDATE}\"" >> /yocto/build/conf/local.conf
 fi
-
-echo "Setting up build environment..."
-DISTRO=librescoot-mdb source ./imx-setup-release.sh -b build
 
 # Update local.conf based on the TARGET environment variable
 TARGET="${TARGET:-mdb}"
