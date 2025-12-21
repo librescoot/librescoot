@@ -239,6 +239,10 @@ jobs:
           fetch-depth: 0
           clean: false
 
+      - name: Clean artifacts directory
+        run: |
+          sudo rm -rf artifacts/*
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
