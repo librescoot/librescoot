@@ -298,8 +298,9 @@ jobs:
 
           PREV_TAG=$(echo "$PREV_RELEASE" | jq -r '.tag_name')
           echo "Previous release: $PREV_TAG"
-
+          
           # Create directory for previous release files
+          rm -rf previous_release
           mkdir -p previous_release
 
           # Map targets to variant_ids
