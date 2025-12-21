@@ -57,6 +57,10 @@ jobs:
             "librescoot/alarm-service"
             "librescoot/carplay-service"
             "rescoot/radio-gaga"
+            "librescoot/uplink-service"
+            "librescoot/redis-ipc"
+            "librescoot/librefsm"
+            "librescoot/pn7150"
           )
 
           SINCE="${{ steps.time.outputs.since }}"
@@ -367,6 +371,10 @@ jobs:
             "librescoot/alarm-service"
             "librescoot/carplay-service"
             "rescoot/radio-gaga"
+            "librescoot/uplink-service"
+            "librescoot/redis-ipc"
+            "librescoot/librefsm"
+            "librescoot/pn7150"
           )
           
           for REPO in "${REPOS[@]}"; do
