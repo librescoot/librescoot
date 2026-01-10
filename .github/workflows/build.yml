@@ -371,6 +371,7 @@ jobs:
             "librescoot/update-service"
             "librescoot/ums-service"
             "librescoot/settings-service"
+            "librescoot/pm-service"
             "librescoot/dbc-backlight-service"
             "librescoot/lsc"
             "librescoot/alarm-service"
