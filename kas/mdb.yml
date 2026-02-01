@@ -1,0 +1,24 @@
+# kas configuration for LibreScoot MDB (Main Driver Board)
+# Usage: kas build kas/mdb.yml
+
+header:
+  version: 14
+  includes:
+    - base.yml
+
+machine: unu-mdb
+distro: librescoot-mdb
+
+local_conf_header:
+  mdb: |
+    # MDB-specific settings
+    PREFERRED_PROVIDER_u-boot = "u-boot-imx"
+    PREFERRED_PROVIDER_virtual/bootloader = "u-boot-imx"
+    PREFERRED_PROVIDER_virtual/kernel = "linux-imx"
+    PREFERRED_VERSION_linux-imx = "5.4.24+git"
+    PREFERRED_VERSION_linux-libc-headers = "5.4.25"
+    PREFERRED_VERSION_u-boot-imx = "2017.03"
+    OLDEST_KERNEL = "5.4.24"
+    EXTRA_IMAGE_FEATURES = "debug-tweaks"
+
+target: librescoot-mdb-image

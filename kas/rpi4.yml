@@ -1,0 +1,28 @@
+# kas configuration for LibreScoot DBC on Raspberry Pi 4 (development)
+# Usage: kas build kas/rpi4.yml
+
+header:
+  version: 14
+  includes:
+    - base.yml
+
+machine: librescoot-dbc-rpi4
+distro: librescoot-dbc
+
+repos:
+  # Additional layer needed for RPi4
+  meta-raspberrypi:
+    url: "https://github.com/agherzan/meta-raspberrypi.git"
+    refspec: "1091bde25e9ebaea33114edb85e4aee931d105f3"
+
+  # Mender RPi4 integration
+  meta-mender-community:
+    layers:
+      meta-mender-raspberrypi:
+
+local_conf_header:
+  rpi4: |
+    # RPi4-specific settings
+    LICENSE_FLAGS_ACCEPTED += "synaptics-killswitch commercial"
+
+target: librescoot-dbc-image

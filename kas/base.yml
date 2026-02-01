@@ -1,0 +1,149 @@
+# kas base configuration for LibreScoot
+# https://kas.readthedocs.io/
+#
+# Usage:
+#   kas build kas/mdb.yml      # Build MDB image
+#   kas build kas/dbc.yml      # Build DBC image
+#   kas build kas/rpi4.yml     # Build RPi4 development image
+#   kas shell kas/mdb.yml      # Open a shell in the build environment
+
+header:
+  version: 14
+
+# NXP BSP is fetched via repo manifest (imx-manifest).
+# kas doesn't natively support Google's `repo` tool, so we define
+# the individual layers that repo would normally sync.
+# This is more explicit and doesn't require the `repo` tool.
+
+repos:
+  # --- Yocto core (from NXP manifest) ---
+  poky:
+    url: "https://git.yoctoproject.org/poky"
+    branch: "scarthgap"
+    layers:
+      meta:
+      meta-poky:
+
+  # --- OpenEmbedded layers ---
+  meta-openembedded:
+    url: "https://git.openembedded.org/meta-openembedded"
+    branch: "scarthgap"
+    layers:
+      meta-oe:
+      meta-python:
+      meta-multimedia:
+      meta-networking:
+      meta-filesystems:
+      meta-gnome:
+      meta-initramfs:
+
+  # --- NXP/Freescale BSP ---
+  meta-freescale:
+    url: "https://github.com/Freescale/meta-freescale.git"
+    branch: "scarthgap"
+
+  meta-freescale-3rdparty:
+    url: "https://github.com/Freescale/meta-freescale-3rdparty.git"
+    branch: "scarthgap"
+
+  meta-freescale-distro:
+    url: "https://github.com/Freescale/meta-freescale-distro.git"
+    branch: "scarthgap"
+
+  meta-imx:
+    url: "https://github.com/nxp-imx/meta-imx.git"
+    branch: "scarthgap"
+    layers:
+      meta-imx-bsp:
+      meta-imx-sdk:
+      meta-imx-ml:
+      meta-imx-v2x:
+
+  meta-nxp-demo-experience:
+    url: "https://github.com/nxp-imx/meta-nxp-demo-experience.git"
+    branch: "scarthgap"
+
+  # --- ARM toolchain ---
+  meta-arm:
+    url: "https://git.yoctoproject.org/meta-arm"
+    branch: "scarthgap"
+    layers:
+      meta-arm:
+      meta-arm-toolchain:
+
+  # --- Additional layers ---
+  meta-clang:
+    url: "https://github.com/siemens/meta-clang.git"
+    branch: "scarthgap"
+
+  # NOTE: meta-browser URL comes from the NXP imx-manifest. Update as needed.
+  meta-browser:
+    url: "https://github.com/nicknack70/nicknack70-nicknack70.git"
+    branch: "scarthgap"
+    layers:
+      meta-chromium:
+
+  meta-qt6:
+    url: "https://code.qt.io/yocto/meta-qt6.git"
+    branch: "scarthgap"
+
+  meta-security:
+    url: "https://git.yoctoproject.org/meta-security"
+    branch: "scarthgap"
+    layers:
+      meta-parsec:
+      meta-tpm:
+
+  meta-virtualization:
+    url: "https://git.yoctoproject.org/meta-virtualization"
+    branch: "scarthgap"
+
+  # --- Mender OTA ---
+  meta-mender:
+    url: "https://github.com/mendersoftware/meta-mender.git"
+    refspec: "00d4dfc36625a27ca0d6ad7aa33eeeab397281a9"
+    layers:
+      meta-mender-core:
+
+  meta-mender-community:
+    url: "https://github.com/mendersoftware/meta-mender-community.git"
+    refspec: "9145b8e34bac23c82984ddcdd5468154ffe7af6d"
+
+  # --- Flutter ---
+  meta-flutter:
+    url: "https://github.com/meta-flutter/meta-flutter.git"
+    refspec: "545eda504de8d9e7b7d2911898e891cb016b6693"
+
+  # --- Java (for BRouter) ---
+  meta-openjdk-temurin:
+    url: "https://github.com/lucimber/meta-openjdk-temurin.git"
+    refspec: "703ab477bbd8d9c13e96d25fa3381066eaea083d"
+
+  # --- LTS kernel patches ---
+  meta-lts-mixins:
+    url: "https://git.yoctoproject.org/meta-lts-mixins"
+    refspec: "a44882db02a0ed0f149371831bfbe067665eb42b"
+
+  # --- LibreScoot ---
+  meta-librescoot:
+    url: "https://github.com/librescoot/meta-librescoot.git"
+    branch: "scarthgap"
+
+# Common local.conf settings
+local_conf_header:
+  base: |
+    # Common LibreScoot build settings
+    INHERIT += "mender-full"
+    INHERIT += "image-buildinfo"
+    ARTIFACTIMG_FSTYPE = "ext4"
+    INIT_MANAGER = "systemd"
+    PRSERV_HOST = "localhost:0"
+    USER_CLASSES ?= "buildstats"
+    PACKAGE_CLASSES ?= "package_rpm"
+    PATCHRESOLVE = "noop"
+    CONF_VERSION = "2"
+    DL_DIR ?= "${TOPDIR}/../downloads"
+    ACCEPT_FSL_EULA = "1"
+    LICENSE_FLAGS_ACCEPTED += "synaptics-killswitch commercial"
+    HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
+    DEFAULT_TIMEZONE = "Europe/Berlin"
