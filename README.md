@@ -11,6 +11,33 @@ This project aims to create a free and open source firmware for iMX6-based elect
 - Docker
 
 ## Quick Start
+
+### Option 1: Using kas (recommended)
+
+[kas](https://kas.readthedocs.io/) is a build configuration tool for Yocto that manages layer repos and build configuration declaratively.
+
+```bash
+# Install kas
+pip3 install kas
+
+git clone https://github.com/librescoot/librescoot.git
+cd librescoot
+
+# Build MDB firmware
+kas build kas/mdb.yml
+
+# Build DBC firmware
+kas build kas/dbc.yml
+
+# Build RPi4 development firmware
+kas build kas/rpi4.yml
+
+# Open a shell in the build environment
+kas shell kas/mdb.yml
+```
+
+### Option 2: Using Docker (original method)
+
 ```bash
 git clone https://github.com/librescoot/librescoot.git
 cd librescoot
