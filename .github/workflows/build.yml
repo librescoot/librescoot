@@ -1,9 +1,7 @@
 name: Builds
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
-    && format('Build {0}{1}',
-        inputs.channel || 'nightly',
-        inputs.meta_librescoot_branch != '' && format(' (meta: {0})', inputs.meta_librescoot_branch) || '')
+    && format('Build {0}', inputs.channel || 'nightly')
     || github.event_name == 'schedule' && 'Nightly build'
     || format('Build {0}', github.ref_name) }}
 
@@ -26,11 +24,11 @@ on:
         options:
           - nightly
           - testing
-      meta_librescoot_branch:
-        description: 'meta-librescoot branch (default: scarthgap)'
+      use_docker:
+        description: 'Build inside Docker container'
         required: false
-        default: ''
-        type: string
+        default: false
+        type: boolean
 
 jobs:
   check-changes:
@@ -50,6 +48,8 @@ jobs:
         id: check
         run: |
           # Check for new commits in relevant repositories
+          # NOTE: This could be replaced by comparing kas lockfile diffs
+          # once the lockfile workflow is established.
           REPOS=(
             "librescoot/librescoot"
             "librescoot/meta-librescoot"
@@ -79,9 +79,8 @@ jobs:
           )
 
           SINCE="${{ steps.time.outputs.since }}"
-          
           HAS_CHANGES=false
-          
+
           # Always build if manually triggered
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             HAS_CHANGES=true
@@ -98,70 +97,54 @@ jobs:
               fi
             done
           fi
-          
+
           echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
           echo "has_changes=${HAS_CHANGES}"
 
-  generate-timestamp:
-    name: Generate Build Timestamp
-    runs-on: self-hosted
-    outputs:
-      timestamp: ${{ steps.set-timestamp.outputs.timestamp }}
-    steps:
-      - name: Set timestamp
-        id: set-timestamp
-        run: |
-          # Generate timestamp in format YYYYMMDDThhmmss
-          TIMESTAMP=$(date -u '+%Y%m%dT%H%M%S')
-          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
-          echo "Generated timestamp: $TIMESTAMP"
-
   determine-version:
     name: Determine Version
-    needs: [generate-timestamp]
     runs-on: self-hosted
     outputs:
       version: ${{ steps.set-version.outputs.version }}
       tag: ${{ steps.set-version.outputs.tag }}
       prerelease: ${{ steps.set-version.outputs.prerelease }}
       channel: ${{ steps.set-version.outputs.channel }}
+      timestamp: ${{ steps.set-version.outputs.timestamp }}
     steps:
       - name: Set version and tag
         id: set-version
         run: |
-          TIMESTAMP="${{ needs.generate-timestamp.outputs.timestamp }}"
-          
+          TIMESTAMP=$(date -u '+%Y%m%dT%H%M%S')
+
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-             # Triggered by tag
-             TAG_NAME=${GITHUB_REF#refs/tags/}
-             CHANNEL="stable"
-             VERSION="$TAG_NAME"
-             TAG="$TAG_NAME"
-             PRERELEASE="false"
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            CHANNEL="stable"
+            VERSION="$TAG_NAME"
+            TAG="$TAG_NAME"
+            PRERELEASE="false"
           else
-             # Manual or Schedule
-             CHANNEL="${{ inputs.channel }}"
-             if [ -z "$CHANNEL" ]; then
-               CHANNEL="nightly"
-             fi
-             
-             if [ "$CHANNEL" == "testing" ]; then
-               VERSION="testing-${TIMESTAMP}"
-               TAG="$VERSION"
-               PRERELEASE="true"
-             else
-               # Nightly
-               VERSION="nightly-${TIMESTAMP}"
-               TAG="$VERSION"
-               PRERELEASE="true"
-             fi
+            CHANNEL="${{ inputs.channel }}"
+            if [ -z "$CHANNEL" ]; then
+              CHANNEL="nightly"
+            fi
+
+            if [ "$CHANNEL" == "testing" ]; then
+              VERSION="testing-${TIMESTAMP}"
+              TAG="$VERSION"
+              PRERELEASE="true"
+            else
+              VERSION="nightly-${TIMESTAMP}"
+              TAG="$VERSION"
+              PRERELEASE="true"
+            fi
           fi
-          
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
           echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
-          
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+
           echo "Channel: $CHANNEL"
           echo "Version: $VERSION"
           echo "Tag: $TAG"
@@ -192,29 +175,81 @@ jobs:
           fetch-depth: 0
           clean: false
 
-      - name: Create Yocto directory
+      - name: Install kas
         run: |
-          mkdir -p yocto
-          sudo chown 999:999 yocto
+          pip3 install --user kas
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Build firmware
+      - name: Determine build config
+        id: config
+        run: |
+          CHANNEL="${{ needs.determine-version.outputs.channel }}"
+          TARGET="${{ matrix.target }}"
+
+          if [ "$CHANNEL" == "stable" ]; then
+            # Stable: build from tested (testing) lockfile
+            CONFIG="kas/lock/testing-${TARGET}.lock.yml"
+            if [ ! -f "$CONFIG" ]; then
+              echo "::error::No testing lockfile found at ${CONFIG}"
+              echo "::error::Stable builds require a tested baseline. Run a testing build first."
+              exit 1
+            fi
+          elif [ "$CHANNEL" == "testing" ]; then
+            # Testing: build from nightly lockfile
+            CONFIG="kas/lock/nightly-${TARGET}.lock.yml"
+            if [ ! -f "$CONFIG" ]; then
+              echo "::warning::No nightly lockfile found at ${CONFIG}, falling back to AUTOREV"
+              CONFIG="kas/${TARGET}.yml"
+            fi
+          else
+            # Nightly: build from config with AUTOREV (latest everything)
+            CONFIG="kas/${TARGET}.yml"
+          fi
+
+          echo "config=$CONFIG" >> $GITHUB_OUTPUT
+          echo "Building ${TARGET} (${CHANNEL}) with config: ${CONFIG}"
+
+      - name: Build with kas
+        if: ${{ !inputs.use_docker }}
+        run: |
+          VERSION="${{ needs.determine-version.outputs.version }}"
+          CHANNEL="${{ needs.determine-version.outputs.channel }}"
+
+          # Set version overrides via KAS_LOCAL_CONF
+          export KAS_LOCAL_CONF="
+          LIBRESCOOT_VERSION = \"${VERSION}\"
+          MENDER_ARTIFACT_NAME = \"release-${VERSION}\"
+          "
+
+          kas build "${{ steps.config.outputs.config }}"
+
+      - name: Build with Docker (alternative)
+        if: ${{ inputs.use_docker }}
         run: |
           sed -i 's/docker run -it/docker run -i/' build.sh
           sed -i 's/docker run -it/docker run -i/' interactive.sh
           sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
-          
-          # Use the determined version
-          LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
+
           BUILD_CHANNEL="${{ needs.determine-version.outputs.channel }}" \
           LIBRESCOOT_VERSION="${{ needs.determine-version.outputs.version }}" \
           ./build.sh ${{ matrix.target }}
+
+      - name: Generate lockfile
+        run: |
+          CHANNEL="${{ needs.determine-version.outputs.channel }}"
+          TARGET="${{ matrix.target }}"
+          LOCKFILE="kas/lock/${CHANNEL}-${TARGET}.lock.yml"
+
+          mkdir -p kas/lock
+          kas dump --lock "kas/${TARGET}.yml" > "$LOCKFILE"
+          echo "Generated lockfile: $LOCKFILE"
 
       - name: Prepare artifacts
         run: |
           sudo rm -rf artifacts/*
           mkdir -p artifacts/${{ matrix.target }}
           VERSION="${{ needs.determine-version.outputs.version }}"
-          
+
           if [ "${{ matrix.target }}" = "mdb" ]; then
             DEPLOY_DIR="yocto/build/tmp-glibc/deploy/images/unu-mdb"
             sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
@@ -250,10 +285,53 @@ jobs:
           retention-days: 1
           compression-level: 0
 
+      - name: Upload lockfile artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lockfile-${{ matrix.target }}-${{ needs.determine-version.outputs.channel }}
+          path: kas/lock/${{ needs.determine-version.outputs.channel }}-${{ matrix.target }}.lock.yml
+          retention-days: 30
+
+  generate-lockfiles:
+    name: Commit Lockfiles
+    needs: [build, determine-version, check-changes]
+    if: ${{ needs.check-changes.outputs.has_changes == 'true' }}
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.ref_name }}
+
+      - name: Download lockfile artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: lockfile-*
+          path: kas/lock/
+          merge-multiple: true
+
+      - name: Commit lockfiles
+        run: |
+          CHANNEL="${{ needs.determine-version.outputs.channel }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add kas/lock/*.lock.yml
+          if git diff --cached --quiet; then
+            echo "No lockfile changes to commit"
+          else
+            git commit -m "kas: update ${CHANNEL} lockfiles [skip ci]
+
+          Generated by CI after successful ${CHANNEL} build.
+          Version: ${{ needs.determine-version.outputs.version }}"
+            git push
+            echo "Committed ${CHANNEL} lockfiles"
+          fi
+
   create-release:
     name: Create Release
-    needs: [check-changes, build, determine-version]
-    # Only create releases for scheduled builds, manual triggers on main branch, or tag pushes
+    needs: [check-changes, build, determine-version, generate-lockfiles]
     if: ${{ needs.check-changes.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/scarthgap') || startsWith(github.ref, 'refs/tags/v')) }}
     runs-on: self-hosted
     steps:
@@ -267,25 +345,23 @@ jobs:
         run: |
           sudo rm -rf artifacts/*
 
-      - name: Download all artifacts
+      - name: Download all firmware artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: librescoot-*
           path: artifacts
+
+      - name: Download lockfile artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: lockfile-*
+          path: release-lockfiles
+          merge-multiple: true
 
       - name: Install xdelta3
         run: |
           sudo apt-get update
           sudo apt-get install -y xdelta3
-
-      - name: Debug - List artifacts directory
-        run: |
-          echo "Listing artifacts directory structure:"
-          ls -la
-          if [ -d artifacts ]; then
-            find artifacts -type f -ls
-          else
-            echo "artifacts directory does not exist!"
-          fi
 
       - name: Create delta patches
         run: |
@@ -294,7 +370,6 @@ jobs:
           echo "Fetching previous release..."
           RELEASES_JSON=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100")
 
-          # Check if the response is valid JSON
           if ! echo "$RELEASES_JSON" | jq empty 2>/dev/null; then
             echo "Error: Failed to fetch releases from GitHub API or invalid JSON response."
             echo "Response: $RELEASES_JSON"
@@ -302,15 +377,13 @@ jobs:
             exit 0
           fi
 
-          # Determine previous release prefix based on channel
           CHANNEL="${{ needs.determine-version.outputs.channel }}"
           if [ "$CHANNEL" == "nightly" ]; then
-             PREFIX="nightly-"
+            PREFIX="nightly-"
           elif [ "$CHANNEL" == "testing" ]; then
-             PREFIX="testing-"
+            PREFIX="testing-"
           elif [ "$CHANNEL" == "stable" ]; then
-             # Diff against latest stable release (v*)
-             PREFIX="v"
+            PREFIX="v"
           fi
 
           PREV_RELEASE=$(echo "$RELEASES_JSON" | jq -r "[.[] | select(.prerelease == ${{ needs.determine-version.outputs.prerelease }} and (.tag_name | startswith(\"$PREFIX\")))] | .[0]")
@@ -322,23 +395,19 @@ jobs:
 
           PREV_TAG=$(echo "$PREV_RELEASE" | jq -r '.tag_name')
           echo "Previous release: $PREV_TAG"
-          
-          # Create directory for previous release files
+
           rm -rf previous_release
           mkdir -p previous_release
 
-          # Map targets to variant_ids
           declare -A VARIANT_MAP
           VARIANT_MAP[mdb]="unu-mdb"
           VARIANT_MAP[dbc]="unu-dbc"
           VARIANT_MAP[rpi4]="librescoot-dbc-rpi4"
 
-          # Download previous .mender files for all targets
           for TARGET in dbc mdb rpi4; do
             VARIANT_ID="${VARIANT_MAP[$TARGET]}"
             echo "Processing target: $TARGET (variant_id: $VARIANT_ID)"
 
-            # Find the previous .mender file URL (matches pattern: librescoot-VARIANT_ID-VERSION.mender)
             PREV_MENDER_URL=$(echo "$PREV_RELEASE" | jq -r ".assets[] | select(.name | contains(\"${VARIANT_ID}\") and endswith(\".mender\")) | .browser_download_url")
 
             if [ -z "$PREV_MENDER_URL" ] || [ "$PREV_MENDER_URL" == "null" ]; then
@@ -350,7 +419,6 @@ jobs:
             PREV_MENDER_FILE="previous_release/librescoot-${VARIANT_ID}-previous.mender"
             curl -L -o "$PREV_MENDER_FILE" "$PREV_MENDER_URL"
 
-            # Find the new .mender file in artifacts
             NEW_MENDER_FILE=$(find artifacts -name "*${VARIANT_ID}*.mender" -type f | head -n 1)
 
             if [ -z "$NEW_MENDER_FILE" ]; then
@@ -359,20 +427,12 @@ jobs:
             fi
 
             echo "  Creating delta patch..."
-            echo "    Old: $PREV_MENDER_FILE"
-            echo "    New: $NEW_MENDER_FILE"
-
-            # Extract version from new mender filename for output name
             VERSION="${{ needs.determine-version.outputs.version }}"
             OUTPUT_DELTA="artifacts/librescoot-${VARIANT_ID}-${VERSION}.delta"
-
-            # Ensure the output directory exists
             mkdir -p "$(dirname "$OUTPUT_DELTA")"
 
-            # Create the delta patch
             python3 mender-delta-create.py "$PREV_MENDER_FILE" "$NEW_MENDER_FILE" "$OUTPUT_DELTA"
-
-            echo "  ✓ Delta created: $OUTPUT_DELTA"
+            echo "  Delta created: $OUTPUT_DELTA"
           done
 
           echo "Delta patch creation complete!"
@@ -412,7 +472,7 @@ jobs:
 
           for REPO in "${REPOS[@]}"; do
             COMMITS=$(curl -s "https://api.github.com/repos/${REPO}/commits?since=${{ needs.check-changes.outputs.since_time }}")
-            
+
             if [ "$(echo "$COMMITS" | jq 'length')" -gt 0 ]; then
               HAS_CHANGES=true
               CHANGELOG="${CHANGELOG}### ${REPO}\n\n"
@@ -420,24 +480,21 @@ jobs:
                 SHA=$(echo "$commit" | jq -r '.sha')
                 MESSAGE=$(echo "$commit" | jq -r '.commit.message' | sed 's/"/\\"/g')
                 URL=$(echo "$commit" | jq -r '.html_url')
-                AUTHOR=$(echo "$commit" | jq -r '.commit.author.name')
-                
+
                 SHORT_MESSAGE=$(echo "$MESSAGE" | head -n1)
-                
+
                 CHANGELOG="${CHANGELOG}* [\`${SHA:0:7}\`](${URL}) - ${SHORT_MESSAGE}\n"
               done < <(echo "$COMMITS" | jq -c '.[]')
               CHANGELOG="${CHANGELOG}\n"
             fi
           done
-          
-          # Store raw changelog without URL encoding
+
           echo "content<<EOF" >> $GITHUB_OUTPUT
           echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
           echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
 
-      - name: Create Github release
+      - name: Create GitHub release
         if: steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2.4.2
         with:
@@ -446,16 +503,22 @@ jobs:
           prerelease: ${{ needs.determine-version.outputs.prerelease }}
           files: |
             artifacts/**/*
+            release-lockfiles/*.lock.yml
           body: |
             ${{ needs.determine-version.outputs.channel == 'nightly' && '🌙' || (needs.determine-version.outputs.channel == 'testing' && '🧪' || '🚀') }} ${{ needs.determine-version.outputs.channel }} build of LibreScoot (version ${{ needs.determine-version.outputs.version }})
-            
+
             ${{ needs.determine-version.outputs.prerelease == 'true' && '⚠️ **WARNING: EXPERIMENTAL BUILD - DO NOT USE ON REAL HARDWARE** ⚠️' || '' }}
-            
+
             This is a ${{ needs.determine-version.outputs.channel }} build with version ${{ needs.determine-version.outputs.version }} from commit ${{ github.sha }}.
-            
+
+            ## Build Method
+            Built using [kas](https://kas.readthedocs.io/) with channel-based lockfile workflow.
+            - Channel: **${{ needs.determine-version.outputs.channel }}**
+            - Lockfiles included as release assets for reproducible rebuilds
+
             ## Changelog
             ${{ steps.changelog.outputs.content }}
-            
+
             Build completed at: ${{ github.event.repository.updated_at }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
