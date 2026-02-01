@@ -24,11 +24,6 @@ on:
         options:
           - nightly
           - testing
-      use_docker:
-        description: 'Build inside Docker container'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   check-changes:
@@ -180,6 +175,9 @@ jobs:
           pip3 install --user kas
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+      - name: Ensure Docker is available
+        run: docker info > /dev/null 2>&1 || (echo "Docker required for kas-container" && exit 1)
+
       - name: Determine build config
         id: config
         run: |
@@ -209,8 +207,7 @@ jobs:
           echo "config=$CONFIG" >> $GITHUB_OUTPUT
           echo "Building ${TARGET} (${CHANNEL}) with config: ${CONFIG}"
 
-      - name: Build with kas
-        if: ${{ !inputs.use_docker }}
+      - name: Build with kas-container
         run: |
           VERSION="${{ needs.determine-version.outputs.version }}"
           CHANNEL="${{ needs.determine-version.outputs.channel }}"
@@ -219,20 +216,13 @@ jobs:
           export KAS_LOCAL_CONF="
           LIBRESCOOT_VERSION = \"${VERSION}\"
           MENDER_ARTIFACT_NAME = \"release-${VERSION}\"
+          ACCEPT_FSL_EULA = \"1\"
           "
 
-          kas build "${{ steps.config.outputs.config }}"
-
-      - name: Build with Docker (alternative)
-        if: ${{ inputs.use_docker }}
-        run: |
-          sed -i 's/docker run -it/docker run -i/' build.sh
-          sed -i 's/docker run -it/docker run -i/' interactive.sh
-          sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
-
-          BUILD_CHANNEL="${{ needs.determine-version.outputs.channel }}" \
-          LIBRESCOOT_VERSION="${{ needs.determine-version.outputs.version }}" \
-          ./build.sh ${{ matrix.target }}
+          # kas-container runs the build in a Docker container automatically,
+          # handling volume mounts, user mapping, and environment.
+          # Shared sstate-cache and downloads persist across builds for speed.
+          kas-container build "${{ steps.config.outputs.config }}"
 
       - name: Generate lockfile
         run: |
@@ -241,7 +231,7 @@ jobs:
           LOCKFILE="kas/lock/${CHANNEL}-${TARGET}.lock.yml"
 
           mkdir -p kas/lock
-          kas dump --lock "kas/${TARGET}.yml" > "$LOCKFILE"
+          kas-container dump --lock "kas/${TARGET}.yml" > "$LOCKFILE"
           echo "Generated lockfile: $LOCKFILE"
 
       - name: Prepare artifacts
