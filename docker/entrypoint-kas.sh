@@ -10,55 +10,61 @@
 #   TARGET=dbc  → builds DBC image
 #   TARGET=rpi4 → builds RPi4 dev image
 #
+# Environment variables:
+#   TARGET          - Build target (mdb/dbc/rpi4, default: mdb)
+#   BUILD_CHANNEL   - Channel (nightly/testing/stable, default: nightly)
+#   LIBRESCOOT_VERSION - Version string for the build
+#   LOCKFILE        - Explicit lockfile path (overrides channel logic)
+#   PACKAGE         - Build a specific package instead of full image
+#   GENERATE_LOCK   - If "1", generate lockfile after build
+#
 # Prerequisites: kas must be installed in the Docker image
 #   pip3 install kas
 
 set -e
 
 TARGET="${TARGET:-mdb}"
+BUILD_CHANNEL="${BUILD_CHANNEL:-nightly}"
+LIBRESCOOT_VERSION="${LIBRESCOOT_VERSION:-0.0.1-dev}"
 
 cd /yocto
 
-# Source environment file for version overrides
-if [ "$BUILD_CHANNEL" = "nightly" ]; then
-    ENV_FILE="/yocto/nightly.env"
-elif [ "$BUILD_CHANNEL" = "testing" ] || [ "$BUILD_CHANNEL" = "stable" ]; then
-    ENV_FILE="/yocto/stable.env"
-else
-    ENV_FILE="/yocto/nightly.env"
-fi
-
-if [ -f "$ENV_FILE" ]; then
-    echo "Sourcing ${ENV_FILE}..."
-    source "$ENV_FILE"
-fi
-
-# Determine LIBRESCOOT_VERSION
-if [ -z "${LIBRESCOOT_VERSION}" ]; then
-    LIBRESCOOT_VERSION="0.0.1-dev"
-fi
-
-# Select kas config based on target
-case "$TARGET" in
-    mdb)  KAS_CONFIG="kas/mdb.yml" ;;
-    dbc)  KAS_CONFIG="kas/dbc.yml" ;;
-    rpi4) KAS_CONFIG="kas/rpi4.yml" ;;
-    *)
-        echo "Error: Unknown target '$TARGET'. Use mdb, dbc, or rpi4."
+# Determine kas config to use
+if [ -n "${LOCKFILE}" ]; then
+    # Explicit lockfile specified
+    KAS_CONFIG="${LOCKFILE}"
+    echo "Using explicit lockfile: ${KAS_CONFIG}"
+elif [ "${BUILD_CHANNEL}" = "stable" ]; then
+    # Stable: build from testing lockfile
+    KAS_CONFIG="kas/lock/testing-${TARGET}.lock.yml"
+    if [ ! -f "$KAS_CONFIG" ]; then
+        echo "Error: No testing lockfile found at ${KAS_CONFIG}"
+        echo "Stable builds require a tested baseline."
         exit 1
-        ;;
-esac
+    fi
+elif [ "${BUILD_CHANNEL}" = "testing" ]; then
+    # Testing: build from nightly lockfile
+    KAS_CONFIG="kas/lock/nightly-${TARGET}.lock.yml"
+    if [ ! -f "$KAS_CONFIG" ]; then
+        echo "Warning: No nightly lockfile at ${KAS_CONFIG}, falling back to AUTOREV"
+        KAS_CONFIG="kas/${TARGET}.yml"
+    fi
+else
+    # Nightly/dev: build from config (AUTOREV resolves to latest)
+    KAS_CONFIG="kas/${TARGET}.yml"
+fi
 
 echo "Building LibreScoot ${TARGET} using kas..."
-echo "  Config: ${KAS_CONFIG}"
+echo "  Config:  ${KAS_CONFIG}"
+echo "  Channel: ${BUILD_CHANNEL}"
 echo "  Version: ${LIBRESCOOT_VERSION}"
 
-# Build additional local.conf overrides
+# Build local.conf overrides via KAS_LOCAL_CONF
 KAS_LOCAL_CONF=""
 KAS_LOCAL_CONF+="LIBRESCOOT_VERSION = \"${LIBRESCOOT_VERSION}\"\n"
 KAS_LOCAL_CONF+="MENDER_ARTIFACT_NAME = \"release-${LIBRESCOOT_VERSION}\"\n"
 
-# Apply SRCREV overrides from environment
+# Apply SRCREV overrides from environment (for development/testing)
 for var in $(compgen -v | grep '^SRCREV_'); do
     val="${!var}"
     if [ -n "$val" ]; then
@@ -72,14 +78,22 @@ if [ -n "$DISTRO_CODENAME" ]; then
     KAS_LOCAL_CONF+="DISTRO_CODENAME = \"${DISTRO_CODENAME}\"\n"
 fi
 
-# Export additional local.conf content for kas
 export KAS_LOCAL_CONF
 
-# If building a specific package
+# Build
 if [ -n "${PACKAGE}" ]; then
     echo "Building specific package: ${PACKAGE}"
     kas build "${KAS_CONFIG}" --target "${PACKAGE}"
 else
     echo "Building full image..."
     kas build "${KAS_CONFIG}"
+fi
+
+# Optionally generate lockfile after build
+if [ "${GENERATE_LOCK}" = "1" ]; then
+    LOCKFILE_OUT="kas/lock/${BUILD_CHANNEL}-${TARGET}.lock.yml"
+    mkdir -p kas/lock
+    echo "Generating lockfile: ${LOCKFILE_OUT}"
+    kas dump --lock "kas/${TARGET}.yml" > "${LOCKFILE_OUT}"
+    echo "Lockfile written to ${LOCKFILE_OUT}"
 fi
