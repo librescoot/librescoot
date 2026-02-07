@@ -268,7 +268,7 @@ jobs:
           set -e
 
           echo "Fetching previous release..."
-          RELEASES_JSON=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases")
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100")
 
           # Check if the response is valid JSON
           if ! echo "$RELEASES_JSON" | jq empty 2>/dev/null; then
