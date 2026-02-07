@@ -21,6 +21,7 @@ REPO_MAP = {
     "SRCREV_settings_service": "https://github.com/librescoot/settings-service",
     "SRCREV_ums_service": "https://github.com/librescoot/ums-service",
     "SRCREV_update_service": "https://github.com/librescoot/update-service",
+    "SRCREV_uplink_service": "https://github.com/librescoot/uplink-service",
     "SRCREV_vehicle_service": "https://github.com/librescoot/vehicle-service",
     "SRCREV_version_service": "https://github.com/librescoot/version-service",
 }
