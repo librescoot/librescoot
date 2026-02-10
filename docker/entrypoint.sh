@@ -359,6 +359,9 @@ echo "Starting build process..."
 
 # Check if PACKAGE is set to build only specific packages
 if [ -n "${PACKAGE}" ]; then
+    if [ "${PACKAGE}" = "scootui" ]; then
+        bitbake -c clean scootui
+    fi
     echo "Building specific package: ${PACKAGE}"
     bitbake "${PACKAGE}" --continue
 else
