@@ -39,7 +39,7 @@ def is_gzipped(filepath):
     except: return False
 
 def create_xdelta_patch(old_file, new_file, patch_file):
-    cmd = ['xdelta3', '-e', '-9', '-s', old_file, new_file, patch_file]
+    cmd = ['xdelta3', '-e', '-9', '-S', 'none', '-s', old_file, new_file, patch_file]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise Exception(f"xdelta3 failed: {result.stderr}")
