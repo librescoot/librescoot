@@ -21,6 +21,15 @@ else
     fi
 fi
 
+# Save any LAYER_VERSION overrides from the environment before sourcing
+# the env file, which would clobber them
+declare -A _saved_overrides
+for var in $(compgen -v LAYER_VERSION_); do
+    if [ -n "${!var}" ]; then
+        _saved_overrides[$var]="${!var}"
+    fi
+done
+
 if [ -f "$ENV_FILE" ]; then
     echo "Sourcing ${ENV_FILE}..."
     source "$ENV_FILE"
@@ -31,6 +40,13 @@ elif [ -f "/opt/yocto-env/$(basename $ENV_FILE)" ]; then
 else
     echo "Warning: Environment file ${ENV_FILE} not found."
 fi
+
+# Restore env overrides that were set before sourcing
+for var in "${!_saved_overrides[@]}"; do
+    echo "Restoring override: ${var}=${_saved_overrides[$var]}"
+    export "$var=${_saved_overrides[$var]}"
+done
+unset _saved_overrides
 
 # Set default branch if not provided
 BRANCH="${BRANCH:-scarthgap}"
