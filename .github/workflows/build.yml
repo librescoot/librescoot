@@ -19,6 +19,11 @@ on:
         options:
           - nightly
           - testing
+      meta_librescoot_branch:
+        description: 'meta-librescoot branch (default: scarthgap)'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   check-changes:
@@ -189,7 +194,10 @@ jobs:
           sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
           
           # Use the determined version
-          BUILD_CHANNEL="${{ needs.determine-version.outputs.channel }}" LIBRESCOOT_VERSION="${{ needs.determine-version.outputs.version }}" ./build.sh ${{ matrix.target }}
+          LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
+          BUILD_CHANNEL="${{ needs.determine-version.outputs.channel }}" \
+          LIBRESCOOT_VERSION="${{ needs.determine-version.outputs.version }}" \
+          ./build.sh ${{ matrix.target }}
 
       - name: Prepare artifacts
         run: |
