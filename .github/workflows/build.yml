@@ -206,17 +206,23 @@ jobs:
           VERSION="${{ needs.determine-version.outputs.version }}"
           
           if [ "${{ matrix.target }}" = "mdb" ]; then
-            sudo rm -f yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz
-            sudo gzip -f -k -9 yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg
-            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
-            cp yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
-            sudo rm -f yocto/build/tmp-glibc/deploy/images/unu-mdb/librescoot-mdb-image-unu-mdb-*.sdimg.gz
+            DEPLOY_DIR="yocto/build/tmp-glibc/deploy/images/unu-mdb"
+            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
+            sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg
+            cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
+            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
+            tar -czf artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-boot-${VERSION}.tar.gz \
+              -C ${DEPLOY_DIR} zImage librescoot-mdb.dtb u-boot-dtb.imx
           elif [ "${{ matrix.target }}" = "dbc" ]; then
-            sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
-            sudo gzip -f -k -9 yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg
-            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
-            cp yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
-            sudo rm -f yocto/build/tmp/deploy/images/unu-dbc/librescoot-dbc-image-unu-dbc-*.sdimg.gz
+            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-dbc"
+            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz
+            sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg
+            cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
+            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz
+            tar -czf artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-boot-${VERSION}.tar.gz \
+              -C ${DEPLOY_DIR} zImage librescoot-dbc.dtb u-boot-dtb.imx
           else
             sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
             sudo gzip -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg
