@@ -35,9 +35,11 @@ fi
 
 echo "Building target: ${TARGET}"
 
+sudo docker rm -f "yocto-build-${TARGET}" 2>/dev/null || true
+
 sudo docker run -it --rm \
     -v "$(pwd)/yocto:/yocto" \
-    --name "yocto-build" \
+    --name "yocto-build-${TARGET}" \
     -e TARGET="${TARGET}" \
     -e BRANCH="${BRANCH}" \
     -e META_LIBRESCOOT_BRANCH="${META_LIBRESCOOT_BRANCH}" \
