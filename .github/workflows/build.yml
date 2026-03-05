@@ -1,4 +1,11 @@
 name: Builds
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch'
+    && format('Build {0}{1}',
+        inputs.channel || 'nightly',
+        inputs.meta_librescoot_branch != '' && format(' (meta: {0})', inputs.meta_librescoot_branch) || '')
+    || github.event_name == 'schedule' && 'Nightly build'
+    || format('Build {0}', github.ref_name) }}
 
 permissions:
   contents: write
