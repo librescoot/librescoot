@@ -73,6 +73,9 @@ jobs:
             "librescoot/redis-ipc"
             "librescoot/librefsm"
             "librescoot/pn7150"
+            "librescoot/boot-animation"
+            "librescoot/dbc-dispatcher"
+            "librescoot/kernel-module-imx-pwm-led"
           )
 
           SINCE="${{ steps.time.outputs.since }}"
@@ -402,8 +405,11 @@ jobs:
             "librescoot/redis-ipc"
             "librescoot/librefsm"
             "librescoot/pn7150"
+            "librescoot/boot-animation"
+            "librescoot/dbc-dispatcher"
+            "librescoot/kernel-module-imx-pwm-led"
           )
-          
+
           for REPO in "${REPOS[@]}"; do
             COMMITS=$(curl -s "https://api.github.com/repos/${REPO}/commits?since=${{ needs.check-changes.outputs.since_time }}")
             
