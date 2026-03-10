@@ -181,9 +181,6 @@ jobs:
           - target: dbc
             runs_on: dbc
             variant_id: unu-dbc
-          - target: rpi4
-            runs_on: rpi5
-            variant_id: librescoot-dbc-rpi4
       fail-fast: false
     steps:
       - name: Checkout repository
@@ -331,10 +328,10 @@ jobs:
           declare -A VARIANT_MAP
           VARIANT_MAP[mdb]="unu-mdb"
           VARIANT_MAP[dbc]="unu-dbc"
-          VARIANT_MAP[rpi4]="librescoot-dbc-rpi4"
+          #VARIANT_MAP[rpi4]="librescoot-dbc-rpi4"
 
           # Download previous .mender files for all targets
-          for TARGET in dbc mdb rpi4; do
+          for TARGET in dbc mdb; do
             VARIANT_ID="${VARIANT_MAP[$TARGET]}"
             echo "Processing target: $TARGET (variant_id: $VARIANT_ID)"
 
