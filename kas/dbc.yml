@@ -1,0 +1,20 @@
+# kas configuration for LibreScoot DBC (Dashboard Controller Board)
+# Usage: kas build kas/dbc.yml
+
+header:
+  version: 14
+  includes:
+    - base.yml
+
+machine: unu-dbc
+distro: librescoot-dbc
+
+local_conf_header:
+  dbc: |
+    # DBC-specific settings
+    PREFERRED_PROVIDER_u-boot = "u-boot-imx"
+    PREFERRED_PROVIDER_virtual/bootloader = "u-boot-imx"
+    PREFERRED_VERSION_u-boot-imx = "2017.03"
+    PREFERRED_VERSION_linux-imx = "6.6.3+git"
+
+target: librescoot-dbc-image
