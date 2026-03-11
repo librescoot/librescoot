@@ -378,6 +378,9 @@ if [ -n "${PACKAGE}" ]; then
     if [ "${PACKAGE}" = "scootui" ]; then
         bitbake -c clean scootui
     fi
+    if [ "${PACKAGE}" = "scootui-qt" ]; then
+	bitbake -c clean scootui-qt
+    fi
     echo "Building specific package: ${PACKAGE}"
     bitbake "${PACKAGE}" --continue
 else
