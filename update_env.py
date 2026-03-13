@@ -18,6 +18,7 @@ REPO_MAP = {
     "SRCREV_pm_service": "https://github.com/librescoot/pm-service",
     "SRCREV_radio_gaga": "https://github.com/rescoot/radio-gaga",
     "SRCREV_scootui": "https://github.com/librescoot/scootui",
+    "SRCREV_scootui_qt": "https://github.com/librescoot/scootui-qt",
     "SRCREV_settings_service": "https://github.com/librescoot/settings-service",
     "SRCREV_ums_service": "https://github.com/librescoot/ums-service",
     "SRCREV_update_service": "https://github.com/librescoot/update-service",
