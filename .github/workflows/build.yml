@@ -69,6 +69,7 @@ jobs:
             "librescoot/boot-animation"
             "librescoot/dbc-dispatcher"
             "librescoot/kernel-module-imx-pwm-led"
+            "librescoot/scootui-qt"
           )
 
           SINCE=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
@@ -444,6 +445,7 @@ jobs:
             "librescoot/boot-animation"
             "librescoot/dbc-dispatcher"
             "librescoot/kernel-module-imx-pwm-led"
+            "librescoot/scootui-qt"
           )
 
           for REPO in "${REPOS[@]}"; do
