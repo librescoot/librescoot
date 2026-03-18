@@ -46,7 +46,6 @@ jobs:
           REPOS=(
             "librescoot/librescoot"
             "librescoot/meta-librescoot"
-            "librescoot/scootui"
             "librescoot/ecu-service"
             "librescoot/vehicle-service"
             "librescoot/battery-service"
@@ -69,7 +68,9 @@ jobs:
             "librescoot/boot-animation"
             "librescoot/dbc-dispatcher"
             "librescoot/kernel-module-imx-pwm-led"
+            "librescoot/keycard-service"
             "librescoot/scootui-qt"
+            "librescoot/scootui-tui"
           )
 
           SINCE=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
@@ -422,7 +423,6 @@ jobs:
           REPOS=(
             "librescoot/librescoot"
             "librescoot/meta-librescoot"
-            "librescoot/scootui"
             "librescoot/ecu-service"
             "librescoot/vehicle-service"
             "librescoot/battery-service"
@@ -445,7 +445,9 @@ jobs:
             "librescoot/boot-animation"
             "librescoot/dbc-dispatcher"
             "librescoot/kernel-module-imx-pwm-led"
+            "librescoot/keycard-service"
             "librescoot/scootui-qt"
+            "librescoot/scootui-tui"
           )
 
           for REPO in "${REPOS[@]}"; do
