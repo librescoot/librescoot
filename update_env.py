@@ -30,6 +30,10 @@ REPO_MAP = {
     "SRCREV_version_service": "https://github.com/librescoot/version-service",
 }
 
+LAYER_REPO_MAP = {
+    "LAYER_VERSION_meta_librescoot": "https://github.com/librescoot/meta-librescoot",
+}
+
 def get_latest_commit(url, branch="HEAD"):
     """Fetches the latest commit hash for a given URL and branch."""
     try:
@@ -60,25 +64,35 @@ def get_latest_commit(url, branch="HEAD"):
 def update_env_file(filepath, target_mode, allowed_keys):
     """Updates the env file with latest commits."""
     print(f"Updating {filepath} for target: {target_mode}...")
-    
+
+    # Merge both maps for lookup
+    all_repos = {**REPO_MAP, **LAYER_REPO_MAP}
+
     with open(filepath, 'r') as f:
         lines = f.readlines()
-    
+
     new_lines = []
     updated_count = 0
-    
+
     for line in lines:
         # Check if line is a variable assignment we care about
         match = re.match(r'^([A-Z_]+[a-z0-9_]*)=', line)
         if match:
             key = match.group(1)
-            if key in REPO_MAP and key in allowed_keys:
-                current_val_match = re.match(r'^[A-Z_]+="(.*)"$', line.strip())
+            if key in all_repos and key in allowed_keys:
+                current_val_match = re.match(r'^[A-Z_]+[a-z0-9_]*="(.*)"$', line.strip())
                 current_val = current_val_match.group(1) if current_val_match else ""
-                
-                print(f"Fetching latest for {key} ({REPO_MAP[key]})...")
-                latest_hash = get_latest_commit(REPO_MAP[key])
-                
+
+                # Use the branch from DISTRO_CODENAME-aware default for layers
+                branch = "HEAD"
+                if key in LAYER_REPO_MAP:
+                    # If current value looks like a branch name (not a hex hash), use it as the ref
+                    if current_val and not re.match(r'^[0-9a-f]{40}$', current_val):
+                        branch = current_val
+
+                print(f"Fetching latest for {key} ({all_repos[key]})...")
+                latest_hash = get_latest_commit(all_repos[key], branch)
+
                 if latest_hash:
                     new_line = f'{key}="{latest_hash}"\n'
                     if new_line != line:
@@ -95,49 +109,56 @@ def update_env_file(filepath, target_mode, allowed_keys):
                 new_lines.append(line)
         else:
             new_lines.append(line)
-            
+
     with open(filepath, 'w') as f:
         f.writelines(new_lines)
-        
+
     print(f"Done. Updated {updated_count} variables in {filepath}.")
 
 def main():
     parser = argparse.ArgumentParser(description="Update env files with latest git commits.")
     parser.add_argument("--target", choices=["stable", "nightly"], required=True, help="Target environment to update.")
-    parser.add_argument("services", nargs="*", help="Specific services to update (e.g. ums-service)")
-    parser.add_argument("--all", action="store_true", help="Update all services")
-    
+    parser.add_argument("services", nargs="*", help="Specific services or layers to update (e.g. ums-service, meta-librescoot)")
+    parser.add_argument("--all", action="store_true", help="Update all services and layers")
+    parser.add_argument("--layers", action="store_true", help="Update all layer versions")
+
     args = parser.parse_args()
-    
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
     env_file = os.path.join(base_dir, f"{args.target}.env")
-    
+
     if not os.path.exists(env_file):
         print(f"Error: File {env_file} does not exist.")
         sys.exit(1)
 
     allowed_keys = set()
     if args.all:
-        allowed_keys = set(REPO_MAP.keys())
-    elif args.services:
-        for s in args.services:
-            # Normalize service name to env var key
-            # e.g. ums-service -> SRCREV_ums_service
-            # e.g. radio-gaga -> SRCREV_radio_gaga
-            key_suffix = s.replace("-", "_")
-            key = f"SRCREV_{key_suffix}"
-            if key in REPO_MAP:
-                allowed_keys.add(key)
-            else:
-                print(f"Warning: Service '{s}' (key: {key}) not found in configuration.")
-        
-        if not allowed_keys:
-            print("Error: No valid services specified to update.")
-            sys.exit(1)
+        allowed_keys = set(REPO_MAP.keys()) | set(LAYER_REPO_MAP.keys())
     else:
-        print("Error: Please specify services to update or use --all.")
+        if args.layers:
+            allowed_keys |= set(LAYER_REPO_MAP.keys())
+
+        if args.services:
+            for s in args.services:
+                # Normalize name to env var key
+                # e.g. ums-service -> SRCREV_ums_service
+                # e.g. meta-librescoot -> LAYER_VERSION_meta_librescoot
+                key_suffix = s.replace("-", "_")
+
+                srcrev_key = f"SRCREV_{key_suffix}"
+                layer_key = f"LAYER_VERSION_{key_suffix}"
+
+                if srcrev_key in REPO_MAP:
+                    allowed_keys.add(srcrev_key)
+                elif layer_key in LAYER_REPO_MAP:
+                    allowed_keys.add(layer_key)
+                else:
+                    print(f"Warning: '{s}' not found in service or layer configuration.")
+
+    if not allowed_keys:
+        print("Error: Please specify services/layers to update, use --layers, or use --all.")
         sys.exit(1)
-        
+
     update_env_file(env_file, args.target, allowed_keys)
 
 if __name__ == "__main__":
