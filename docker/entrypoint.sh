@@ -395,7 +395,7 @@ else
 
     # Clean scootui for both dbc and rpi4 targets
     if [ "${TARGET}" = "dbc" ] || [ "${TARGET}" = "rpi4" ]; then
-        bitbake -c clean scootui
+        bitbake -c clean scootui-qt
     fi
 
     bitbake "${IMAGE_NAME}" --continue
