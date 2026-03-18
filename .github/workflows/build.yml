@@ -464,6 +464,9 @@ jobs:
 
                 SHORT_MESSAGE=$(echo "$MESSAGE" | head -n1)
 
+                # Rewrite bare #N references to org/repo#N so GitHub links to the correct repo
+                SHORT_MESSAGE=$(echo "$SHORT_MESSAGE" | sed "s|#\([0-9]\+\)|${REPO}#\1|g")
+
                 CHANGELOG="${CHANGELOG}* [\`${SHA:0:7}\`](${URL}) - ${SHORT_MESSAGE}\n"
               done < <(echo "$COMMITS" | jq -c '.[]')
               CHANGELOG="${CHANGELOG}\n"
