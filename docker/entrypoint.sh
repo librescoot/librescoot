@@ -239,6 +239,11 @@ LICENSE_FLAGS_ACCEPTED += "synaptics-killswitch commercial"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
 # EXTRA_IMAGE_FEATURES = "debug-tweaks"
 DEFAULT_TIMEZONE = "Europe/Berlin"
+
+# Track package sizes and file lists across builds
+INHERIT += "buildhistory"
+BUILDHISTORY_COMMIT = "1"
+BUILDHISTORY_FEATURES = "image package"
 EOL
 elif [ "$TARGET" == "dbc" ]; then
     # dbc
@@ -314,6 +319,11 @@ ACCEPT_FSL_EULA = "1"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
 # EXTRA_IMAGE_FEATURES = "debug-tweaks"
 DEFAULT_TIMEZONE = "Europe/Berlin"
+
+# Track package sizes and file lists across builds
+INHERIT += "buildhistory"
+BUILDHISTORY_COMMIT = "1"
+BUILDHISTORY_FEATURES = "image package"
 EOL
 else
     # mdb
@@ -368,6 +378,11 @@ ACCEPT_FSL_EULA = "1"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
 EXTRA_IMAGE_FEATURES = "debug-tweaks"
 DEFAULT_TIMEZONE = "Europe/Berlin"
+
+# Track package sizes and file lists across builds
+INHERIT += "buildhistory"
+BUILDHISTORY_COMMIT = "1"
+BUILDHISTORY_FEATURES = "image package"
 EOL
 fi
 
