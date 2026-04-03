@@ -216,6 +216,7 @@ jobs:
             sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
             sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg
             cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
             cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
             sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
             tar -chzf artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-boot-${VERSION}.tar.gz \
@@ -225,6 +226,7 @@ jobs:
             sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz
             sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg
             cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
             cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
             sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz
             tar -chzf artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-boot-${VERSION}.tar.gz \
@@ -233,6 +235,7 @@ jobs:
             sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
             sudo gzip -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg
             cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
             cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
             sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
           fi
