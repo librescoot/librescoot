@@ -11,6 +11,7 @@ import subprocess
 import json
 import hashlib
 import gzip
+from datetime import datetime, timezone
 from pathlib import Path
 
 # --- (calculate_sha256, extract_mender, decompress_gz, is_gzipped, create_xdelta_patch functions are unchanged) ---
@@ -47,12 +48,13 @@ def create_xdelta_patch(old_file, new_file, patch_file):
 
 def process_file_for_delta(filepath, work_dir, file_id):
     filename = os.path.basename(filepath)
-    metadata = {'original_name': filename, 'compressed': False, 'sha256': calculate_sha256(filepath)}
+    metadata = {'original_name': filename, 'compressed': False, 'sha256': calculate_sha256(filepath), 'size': os.path.getsize(filepath)}
     if filename.endswith('.gz') and is_gzipped(filepath):
         decompressed_path = os.path.join(work_dir, f"{file_id}.decompressed")
         decompress_gz(filepath, decompressed_path)
         metadata['compressed'] = True
         metadata['decompressed_sha256'] = calculate_sha256(decompressed_path)
+        metadata['decompressed_size'] = os.path.getsize(decompressed_path)
         return decompressed_path, metadata
     else:
         return filepath, metadata
@@ -65,6 +67,19 @@ def get_file_list(directory):
             rel_path = str(filepath.relative_to(base_path))
             files[rel_path] = {'sha256': calculate_sha256(filepath)}
     return files
+
+def get_artifact_name(mender_dir):
+    header_path = os.path.join(mender_dir, 'header.tar.gz')
+    if not os.path.exists(header_path): return None
+    with tempfile.TemporaryDirectory() as temp_dir:
+        with tarfile.open(header_path, 'r:gz') as tar:
+            tar.extractall(temp_dir)
+        header_info_path = os.path.join(temp_dir, 'header-info')
+        if os.path.exists(header_info_path):
+            with open(header_info_path, 'r') as f:
+                header_info = json.load(f)
+                return header_info.get('artifact_provides', {}).get('artifact_name')
+    return None
 
 def get_payload_checksum(mender_dir):
     header_path = os.path.join(mender_dir, 'header.tar.gz')
@@ -91,9 +106,12 @@ def create_delta_patch(old_mender, new_mender, output_delta):
         old_files, new_files = get_file_list(old_dir), get_file_list(new_dir)
         
         metadata = {
+            'old_artifact_name': get_artifact_name(old_dir),
+            'new_artifact_name': get_artifact_name(new_dir),
             'old_payload_checksum': get_payload_checksum(old_dir),
             'new_payload_checksum': get_payload_checksum(new_dir),
-            'version': 3, # Mark as new format
+            'created_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'version': 3,
             'changes': {}
         }
 
