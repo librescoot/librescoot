@@ -141,7 +141,7 @@ clone_layer "meta-librescoot" "${LAYER_VERSION_meta_librescoot:-scarthgap}" "htt
 clone_layer "meta-openjdk-temurin" "${LAYER_VERSION_meta_openjdk_temurin:-scarthgap}" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
 clone_layer "meta-raspberrypi" "${LAYER_VERSION_meta_raspberrypi:-scarthgap}" "https://github.com/agherzan/meta-raspberrypi.git" "sources/meta-raspberrypi"
 if [ "${TARGET}" = "rpi4" ]; then
-    clone_layer "meta-lts-mixins" "${LAYER_VERSION_meta_lts_mixins:-scarthgap}" "https://git.yoctoproject.org/meta-lts-mixins" "sources/meta-lts-mixins"
+    clone_layer "meta-lts-mixins" "${LAYER_VERSION_meta_lts_mixins:-scarthgap}" "git://git.yoctoproject.org/meta-lts-mixins" "sources/meta-lts-mixins"
 fi
 
 # Determine LIBRESCOOT_VERSION - use environment variable if set, otherwise from meta-librescoot repository
