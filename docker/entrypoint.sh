@@ -67,16 +67,36 @@ if [ ! -d .repo ]; then
     repo sync
 fi
 
+# Retry a command with exponential backoff
+retry_with_backoff() {
+    local max_attempts=5
+    local delay=5
+    local attempt=1
+    while true; do
+        if "$@"; then
+            return 0
+        fi
+        if [ $attempt -ge $max_attempts ]; then
+            echo "Failed after $max_attempts attempts: $*"
+            return 1
+        fi
+        echo "Attempt $attempt failed, retrying in ${delay}s..."
+        sleep $delay
+        delay=$((delay * 2))
+        attempt=$((attempt + 1))
+    done
+}
+
 # Clone required layers if not present
 clone_layer() {
     local name=$1
     local ref=$2  # Can be branch, tag, or commit
     local repo_url=$3
     local path=$4
-    
+
     if [ ! -d "$path" ]; then
         echo "Cloning $name layer..."
-        git clone "$repo_url" "$path"
+        retry_with_backoff git clone "$repo_url" "$path"
         cd "$path"
     else
         cd "$path"
@@ -89,9 +109,9 @@ clone_layer() {
             fi
         fi
         # Fetch all refs (branches, tags, etc.)
-        git fetch origin --tags --force
+        retry_with_backoff git fetch origin --tags --force
     fi
-    
+
     # Determine if ref is a branch, tag, or commit
     if git show-ref --verify --quiet "refs/remotes/origin/$ref"; then
         # It's a remote branch
@@ -108,7 +128,7 @@ clone_layer() {
         echo "Checking out commit $ref..."
         git checkout -f "$ref"
     fi
-    
+
     cd - > /dev/null
 }
 
