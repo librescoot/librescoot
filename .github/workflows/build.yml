@@ -506,7 +506,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate app token for downloads site
+      - name: Generate app token for site rebuilds
         if: steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
         id: app-token
         uses: actions/create-github-app-token@v1
@@ -514,7 +514,7 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: librescoot
-          repositories: downloads.librescoot.org
+          repositories: downloads.librescoot.org,librescoot.github.io
 
       - name: Trigger downloads site rebuild
         if: steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
@@ -522,4 +522,12 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
           repository: librescoot/downloads.librescoot.org
+          event-type: releases-changed
+
+      - name: Trigger main site rebuild
+        if: steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          repository: librescoot/librescoot.github.io
           event-type: releases-changed
