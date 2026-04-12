@@ -269,6 +269,8 @@ jobs:
 
       - name: Download all artifacts
         uses: actions/download-artifact@v8
+        env:
+          NODE_OPTIONS: --no-deprecation
         with:
           path: artifacts
 
