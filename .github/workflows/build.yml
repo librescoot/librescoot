@@ -184,7 +184,7 @@ jobs:
       fail-fast: false
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           clean: false
@@ -243,7 +243,7 @@ jobs:
           ls -l artifacts/*
 
       - name: Upload firmware artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: librescoot-${{ matrix.variant_id }}-${{ needs.determine-version.outputs.version }}
           path: artifacts/${{ matrix.target }}/*
@@ -258,7 +258,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           clean: false
@@ -268,7 +268,7 @@ jobs:
           sudo rm -rf artifacts/*
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
 
