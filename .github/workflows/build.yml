@@ -150,8 +150,17 @@ jobs:
                TAG="$VERSION"
                PRERELEASE="true"
              else
-               # Nightly
-               VERSION="nightly-${TIMESTAMP}"
+               # Nightly. If a non-default meta_librescoot branch was passed,
+               # tag it as custom-nightly-<timestamp>-<branch-slug> so the
+               # artifact is distinguishable from the regular scheduled
+               # nightly (same release stream, different tree).
+               BRANCH_INPUT="${{ inputs.meta_librescoot_branch }}"
+               if [ -n "$BRANCH_INPUT" ] && [ "$BRANCH_INPUT" != "scarthgap" ]; then
+                 BRANCH_SLUG=$(echo "$BRANCH_INPUT" | tr '/' '-' | tr -cd '[:alnum:]._-')
+                 VERSION="custom-nightly-${TIMESTAMP}-${BRANCH_SLUG}"
+               else
+                 VERSION="nightly-${TIMESTAMP}"
+               fi
                TAG="$VERSION"
                PRERELEASE="true"
              fi
