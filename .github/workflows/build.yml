@@ -208,12 +208,43 @@ jobs:
           sed -i 's/docker run -it/docker run -i/' build.sh
           sed -i 's/docker run -it/docker run -i/' interactive.sh
           sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
-          
+
           # Use the determined version
           LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
           BUILD_CHANNEL="${{ needs.determine-version.outputs.channel }}" \
           LIBRESCOOT_VERSION="${{ needs.determine-version.outputs.version }}" \
           ./build.sh ${{ matrix.target }}
+
+      - name: Verify systemd unit graph
+        run: |
+          set -uo pipefail
+
+          ROOTFS=$(sudo find yocto/build -maxdepth 7 -type d \
+            -path "*/work/*/librescoot-${{ matrix.target }}-image/*/rootfs" \
+            -print -quit 2>/dev/null)
+
+          if [ -z "$ROOTFS" ]; then
+            echo "::warning::Could not locate rootfs; skipping systemd verify"
+            exit 0
+          fi
+          echo "rootfs: $ROOTFS"
+
+          if ! command -v systemd-analyze >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends systemd
+          fi
+
+          LOG=$(mktemp)
+          # systemd-analyze verify exits 0 even when it reports a cycle, so
+          # we capture the output and grep for the marker string instead.
+          sudo systemd-analyze verify --root="$ROOTFS" \
+            default.target multi-user.target sysinit.target \
+            2>&1 | tee "$LOG" || true
+
+          if grep -qE "ordering cycle|deleted to break ordering" "$LOG"; then
+            echo "::error::systemd detected an ordering cycle in the built rootfs - see log above"
+            exit 1
+          fi
 
       - name: Prepare artifacts
         run: |
