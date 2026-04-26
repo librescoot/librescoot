@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions, install help, or general chat
+    url: https://discord.gg/VrumFruSzJ
+    about: Use Discord for anything that isn't a clear LibreScoot bug or feature request — install help, "will this work on my scooter", lost keycard, or problems with stock unu firmware.

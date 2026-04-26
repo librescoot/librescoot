@@ -1,0 +1,47 @@
+name: Feature request
+description: Suggest something LibreScoot should do.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature.
+
+        This form is for **LibreScoot** features. For general scooter questions or discussion, use [Discord](https://discord.gg/VrumFruSzJ).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What do you want LibreScoot to do?
+      placeholder: e.g. "Show estimated remaining range on the display, based on current battery level and recent consumption."
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why? What problem does this solve for you?
+      description: Helps us understand the use case so we can find the right shape for the feature, even if the implementation ends up different from what you suggested.
+      placeholder: e.g. "On longer rides I'm never sure if I'll make it home, and the percentage alone doesn't tell me much."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where would this live?
+      description: Optional. Best guess is fine.
+      options:
+        - Display
+        - App
+        - Scooter behavior (lights, unlock, hibernate, etc.)
+        - Updates
+        - Other
+        - Not sure
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Have you tried solving this another way?
+      description: Optional. Workarounds you've used, or other approaches you've considered.

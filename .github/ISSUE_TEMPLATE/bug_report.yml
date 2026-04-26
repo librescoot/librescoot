@@ -1,0 +1,78 @@
+name: Bug report
+description: Something is broken or behaving wrong with LibreScoot.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        This form is for problems with **LibreScoot firmware**. If you're running stock unu firmware, or you're not sure what's installed, please ask on [Discord](https://discord.gg/VrumFruSzJ) instead.
+
+        Fill in what you know — the optional fields are genuinely optional.
+
+  - type: textarea
+    id: intent
+    attributes:
+      label: What were you trying to do, and what did you expect?
+      placeholder: e.g. "Tap the keycard to unlock the scooter and have the display come on within a few seconds."
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened instead?
+      description: Anything that seems related — when it started, what was going on at the time (after a ride, after rain, after an update).
+      placeholder: e.g. "Display stays black. Headlight comes on, but the screen never wakes up. Started this morning, worked fine yesterday."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can someone else reproduce it?
+      description: Optional. If it happens randomly, just say so.
+      placeholder: |
+        1. Park and lock the scooter.
+        2. Wait an hour.
+        3. Tap keycard — display stays black.
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you already tried?
+      description: Optional but helpful. e.g. reboot, reseating cables, swapping battery, removing the scooter from your phone's Bluetooth settings.
+
+  - type: dropdown
+    id: channel
+    attributes:
+      label: Stable or nightly?
+      options:
+        - Stable
+        - Nightly
+        - I don't know
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Firmware version, if you know it
+      description: Visible in the LibreScoot updates screen on the display, or via `lsc status` if you have shell access. Leave blank if you don't know.
+      placeholder: e.g. v0.5.0 or 2026-04-20-nightly
+
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots, photos, or video
+      description: Drag and drop files here. A photo of the display or a screen recording of the app is often the fastest way to explain what's going on.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (advanced)
+      description: |
+        Optional, only if you have shell access. Paste relevant output from `lsc status` or `journalctl -u librescoot-<service> -n 200`.
+      render: shell
