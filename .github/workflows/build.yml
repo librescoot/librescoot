@@ -78,10 +78,11 @@ jobs:
           
           HAS_CHANGES=false
           
-          # Always build if manually triggered
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          # Always build if manually triggered or pushed as a release tag
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] \
+             || [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             HAS_CHANGES=true
-            echo "Manual trigger detected. Forcing build."
+            echo "Manual trigger or tag push detected. Forcing build."
           else
             for REPO in "${REPOS[@]}"; do
               echo "Checking repo ${REPO}..."
