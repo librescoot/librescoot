@@ -1,6 +1,5 @@
-[![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
 
-# LibreScoot
+# Librescoot
 
 This project aims to create a free and open source firmware for iMX6-based electric scooters.
 
@@ -17,6 +16,7 @@ For installation instructions, documentation, and the installer, please visit [h
 We welcome contributions. Feel free to open issues for discussion or submit PRs for review.
 
 ## License
+
 This project is dual-licensed. The source code is available under the
 [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
 The maintainers reserve the right to grant separate licenses for commercial distribution; please contact the maintainers to discuss commercial licensing.
@@ -25,4 +25,3 @@ The maintainers reserve the right to grant separate licenses for commercial dist
 
 [cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
 [cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
-[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
