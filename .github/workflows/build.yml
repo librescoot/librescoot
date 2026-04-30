@@ -441,9 +441,7 @@ jobs:
             artifacts/**/*
           body: |
             ${{ needs.determine-version.outputs.channel == 'nightly' && '🌙' || (needs.determine-version.outputs.channel == 'testing' && '🧪' || '🚀') }} ${{ needs.determine-version.outputs.channel }} build of LibreScoot (version ${{ needs.determine-version.outputs.version }})
-            
-            ${{ needs.determine-version.outputs.prerelease == 'true' && '⚠️ **WARNING: EXPERIMENTAL BUILD - DO NOT USE ON REAL HARDWARE** ⚠️' || '' }}
-            
+
             This is a ${{ needs.determine-version.outputs.channel }} build with version ${{ needs.determine-version.outputs.version }} from commit ${{ github.sha }}.
             
             ## Changelog
