@@ -42,6 +42,7 @@ declare -A SRCREV_REPO=(
   [SRCREV_keycard_service]="librescoot/keycard-service"
   [SRCREV_lsc]="librescoot/lsc"
   [SRCREV_modem_service]="librescoot/modem-service"
+  [SRCREV_motion_service]="librescoot/motion-service"
   [SRCREV_pm_service]="librescoot/pm-service"
   [SRCREV_radio_gaga]="rescoot/radio-gaga"
   [SRCREV_scootui_qt]="librescoot/scootui-qt"

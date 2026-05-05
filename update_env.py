@@ -19,6 +19,7 @@ REPO_MAP = {
     "SRCREV_keycard_service": "https://github.com/librescoot/keycard-service",
     "SRCREV_lsc": "https://github.com/librescoot/lsc",
     "SRCREV_modem_service": "https://github.com/librescoot/modem-service",
+    "SRCREV_motion_service": "https://github.com/librescoot/motion-service",
     "SRCREV_pm_service": "https://github.com/librescoot/pm-service",
     "SRCREV_radio_gaga": "https://github.com/rescoot/radio-gaga",
     "SRCREV_scootui_qt": "https://github.com/librescoot/scootui-qt",
