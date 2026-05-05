@@ -158,32 +158,6 @@ fi
 echo "Setting up build environment..."
 DISTRO=librescoot-mdb source ./imx-setup-release.sh -b build
 
-# Apply SRCREV overrides from environment variables
-echo "Applying version overrides..."
-for var in $(compgen -v | grep '^SRCREV_'); do
-    val="${!var}"
-    if [ -n "$val" ]; then
-        # Convert SRCREV_package_name to SRCREV_pn-package-name
-        # Replace underscores with dashes in the package name part
-        pkg_name="${var#SRCREV_}"
-        pkg_name="${pkg_name//_/-}"
-        echo "Overriding ${pkg_name} with ${val}"
-        echo "SRCREV:pn-${pkg_name} = \"${val}\"" >> /yocto/build/conf/local.conf
-    fi
-done
-
-# Apply DISTRO_CODENAME override if set
-if [ -n "$DISTRO_CODENAME" ]; then
-    echo "Overriding DISTRO_CODENAME with ${DISTRO_CODENAME}"
-    echo "DISTRO_CODENAME = \"${DISTRO_CODENAME}\"" >> /yocto/build/conf/local.conf
-fi
-
-# Apply SCOOTUI_VERSION_UPDATE if set (for scootui builds)
-if [ -n "$SCOOTUI_VERSION_UPDATE" ]; then
-    echo "Overriding scootui version with ${SCOOTUI_VERSION_UPDATE}"
-    echo "PV:pn-scootui = \"${SCOOTUI_VERSION_UPDATE}\"" >> /yocto/build/conf/local.conf
-fi
-
 # Update local.conf based on the TARGET environment variable
 TARGET="${TARGET:-mdb}"
 # Overwrite bblayers.conf
@@ -412,6 +386,34 @@ INHERIT += "buildhistory"
 BUILDHISTORY_COMMIT = "1"
 BUILDHISTORY_FEATURES = "image package"
 EOL
+fi
+
+# Apply SRCREV overrides from environment variables.
+# This must run AFTER the TARGET-specific local.conf is written above,
+# otherwise the overrides get clobbered.
+echo "Applying version overrides..."
+for var in $(compgen -v | grep '^SRCREV_'); do
+    val="${!var}"
+    if [ -n "$val" ]; then
+        # Convert SRCREV_package_name to SRCREV_pn-package-name
+        # Replace underscores with dashes in the package name part
+        pkg_name="${var#SRCREV_}"
+        pkg_name="${pkg_name//_/-}"
+        echo "Overriding ${pkg_name} with ${val}"
+        echo "SRCREV:pn-${pkg_name} = \"${val}\"" >> /yocto/build/conf/local.conf
+    fi
+done
+
+# Apply DISTRO_CODENAME override if set
+if [ -n "$DISTRO_CODENAME" ]; then
+    echo "Overriding DISTRO_CODENAME with ${DISTRO_CODENAME}"
+    echo "DISTRO_CODENAME = \"${DISTRO_CODENAME}\"" >> /yocto/build/conf/local.conf
+fi
+
+# Apply SCOOTUI_VERSION_UPDATE if set (for scootui builds)
+if [ -n "$SCOOTUI_VERSION_UPDATE" ]; then
+    echo "Overriding scootui version with ${SCOOTUI_VERSION_UPDATE}"
+    echo "PV:pn-scootui = \"${SCOOTUI_VERSION_UPDATE}\"" >> /yocto/build/conf/local.conf
 fi
 
 echo "Starting build process..."
