@@ -420,6 +420,24 @@ jobs:
 
           echo "Delta patch creation complete!"
 
+      - name: Generate SHA256SUMS
+        run: |
+          set -e
+          cd artifacts
+          # Hash every release artifact so the installer (and any other
+          # downstream consumer) can verify a download wasn't truncated or
+          # tampered with. Output basenames only — gh-release flattens its
+          # uploads by basename, so paths in SHA256SUMS would be useless to
+          # any consumer fetching from the release URL. Atomic rename so a
+          # partial file is never visible.
+          find . -type f -name 'librescoot-*' | while read -r f; do
+            hash=$(sha256sum "$f" | cut -d' ' -f1)
+            base=$(basename "$f")
+            printf '%s  %s\n' "$hash" "$base"
+          done | sort -k2 > SHA256SUMS.tmp
+          mv SHA256SUMS.tmp SHA256SUMS
+          cat SHA256SUMS
+
       - name: Generate changelog
         id: changelog
         env:
