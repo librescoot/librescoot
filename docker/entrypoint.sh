@@ -112,9 +112,9 @@ if [ -z "${LIBRESCOOT_VERSION}" ]; then
     META_LIBRESCOOT_VERSION=$(git describe --always --long --tags --dirty 2>/dev/null || echo "0.0.1-dev")
     cd -
     LIBRESCOOT_VERSION="${META_LIBRESCOOT_VERSION}"
-    echo "Using LibreScoot version from meta-librescoot: ${LIBRESCOOT_VERSION}"
+    echo "Using Librescoot version from meta-librescoot: ${LIBRESCOOT_VERSION}"
 else
-    echo "Using LibreScoot version from environment variable: ${LIBRESCOOT_VERSION}"
+    echo "Using Librescoot version from environment variable: ${LIBRESCOOT_VERSION}"
 fi
 
 echo "Setting up build environment..."

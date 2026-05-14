@@ -1,6 +1,6 @@
 [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
 
-# LibreScoot
+# Librescoot
 
 ⚠️ **WARNING: EXTREMELY EXPERIMENTAL - DO NOT USE ON REAL HARDWARE** ⚠️
 
@@ -70,7 +70,7 @@ The Docker entrypoint script handles the Yocto build process inside the containe
    - Clones necessary Yocto layers:
      - meta-mender: For OTA updates
      - meta-flutter: For Flutter app support
-     - meta-librescoot: LibreScoot-specific layer
+     - meta-librescoot: Librescoot-specific layer
      - meta-openjdk-temurin: Java support
 
 3. **Build Configuration**:
