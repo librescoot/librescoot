@@ -191,6 +191,12 @@ jobs:
           - target: dbc
             runs_on: dbc
             variant_id: unu-dbc
+          - target: mdb-minimal
+            runs_on: mdb
+            variant_id: unu-mdb-minimal
+          - target: dbc-minimal
+            runs_on: dbc
+            variant_id: unu-dbc-minimal
       fail-fast: false
     steps:
       - name: Checkout repository
@@ -263,6 +269,23 @@ jobs:
             sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
             tar -chzf artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-boot-${VERSION}.tar.gz \
               -C ${DEPLOY_DIR} zImage librescoot-mdb.dtb u-boot-dtb.imx
+          elif [ "${{ matrix.target }}" = "mdb-minimal" ]; then
+            # Bootstrap image: only the flashable sdimg is useful. No .mender
+            # (nobody OTAs onto a minimal image) and no boot tarball (boot
+            # bits are identical to the full mdb image's).
+            DEPLOY_DIR="yocto/build/tmp-glibc/deploy/images/unu-mdb"
+            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz
+            sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg
+            cp ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
+            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz
+          elif [ "${{ matrix.target }}" = "dbc-minimal" ]; then
+            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-dbc"
+            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz
+            sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg
+            cp ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
+            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz
           elif [ "${{ matrix.target }}" = "dbc" ]; then
             DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-dbc"
             sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz
