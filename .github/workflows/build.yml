@@ -260,7 +260,7 @@ jobs:
           VERSION="${{ needs.determine-version.outputs.version }}"
           
           if [ "${{ matrix.target }}" = "mdb" ]; then
-            DEPLOY_DIR="yocto/build/tmp-glibc/deploy/images/unu-mdb"
+            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-mdb"
             sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
             sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg
             cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
@@ -273,7 +273,7 @@ jobs:
             # Bootstrap image: only the flashable sdimg is useful. No .mender
             # (nobody OTAs onto a minimal image) and no boot tarball (boot
             # bits are identical to the full mdb image's).
-            DEPLOY_DIR="yocto/build/tmp-glibc/deploy/images/unu-mdb"
+            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-mdb"
             sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz
             sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg
             cp ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
