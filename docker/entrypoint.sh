@@ -242,7 +242,7 @@ INHERIT += "buildhistory"
 BUILDHISTORY_COMMIT = "1"
 BUILDHISTORY_FEATURES = "image package"
 EOL
-elif [ "$TARGET" == "dbc" ]; then
+elif [ "$TARGET" == "dbc" ] || [ "$TARGET" == "dbc-minimal" ]; then
     # dbc
     cat > /yocto/build/conf/bblayers.conf << 'EOL'
 LCONF_VERSION = "7"

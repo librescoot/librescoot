@@ -191,6 +191,12 @@ jobs:
           - target: dbc
             runs_on: dbc
             variant_id: unu-dbc
+          - target: mdb-minimal
+            runs_on: mdb
+            variant_id: unu-mdb-minimal
+          - target: dbc-minimal
+            runs_on: dbc
+            variant_id: unu-dbc-minimal
       fail-fast: false
     steps:
       - name: Checkout repository
@@ -263,6 +269,23 @@ jobs:
             sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
             tar -chzf artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-boot-${VERSION}.tar.gz \
               -C ${DEPLOY_DIR} zImage librescoot-mdb.dtb u-boot-dtb.imx
+          elif [ "${{ matrix.target }}" = "mdb-minimal" ]; then
+            # Bootstrap image: only the flashable sdimg is useful. No .mender
+            # (nobody OTAs onto a minimal image) and no boot tarball (boot
+            # bits are identical to the full mdb image's).
+            DEPLOY_DIR="yocto/build/tmp-glibc/deploy/images/unu-mdb"
+            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz
+            sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg
+            cp ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
+            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz
+          elif [ "${{ matrix.target }}" = "dbc-minimal" ]; then
+            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-dbc"
+            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz
+            sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg
+            cp ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
+            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz
           elif [ "${{ matrix.target }}" = "dbc" ]; then
             DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-dbc"
             sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz
@@ -381,8 +404,9 @@ jobs:
             VARIANT_ID="${VARIANT_MAP[$TARGET]}"
             echo "Processing target: $TARGET (variant_id: $VARIANT_ID)"
 
-            # Find the previous .mender file URL (matches pattern: librescoot-VARIANT_ID-VERSION.mender)
-            PREV_MENDER_URL=$(echo "$PREV_RELEASE" | jq -r ".assets[] | select(.name | contains(\"${VARIANT_ID}\") and endswith(\".mender\")) | .browser_download_url")
+            # Exact-name match: substring matching on VARIANT_ID would also
+            # hit librescoot-VARIANT_ID-minimal-* bootstrap assets.
+            PREV_MENDER_URL=$(echo "$PREV_RELEASE" | jq -r --arg n "librescoot-${VARIANT_ID}-${PREV_TAG}.mender" '.assets[] | select(.name == $n) | .browser_download_url')
 
             if [ -z "$PREV_MENDER_URL" ] || [ "$PREV_MENDER_URL" == "null" ]; then
               echo "  Warning: No previous .mender file found for variant_id $VARIANT_ID. Skipping delta."
@@ -393,8 +417,8 @@ jobs:
             PREV_MENDER_FILE="previous_release/librescoot-${VARIANT_ID}-previous.mender"
             curl -L -o "$PREV_MENDER_FILE" "$PREV_MENDER_URL"
 
-            # Find the new .mender file in artifacts
-            NEW_MENDER_FILE=$(find artifacts -name "*${VARIANT_ID}*.mender" -type f | head -n 1)
+            # Find the new .mender file in artifacts (exact name, see above)
+            NEW_MENDER_FILE=$(find artifacts -name "librescoot-${VARIANT_ID}-${{ needs.determine-version.outputs.version }}.mender" -type f | head -n 1)
 
             if [ -z "$NEW_MENDER_FILE" ]; then
               echo "  Warning: No new .mender file found for variant_id $VARIANT_ID. Skipping delta."
