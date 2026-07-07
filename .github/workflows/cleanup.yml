@@ -17,7 +17,7 @@ jobs:
           keep_latest: 30
           delete_type: 'prerelease'
           delete_tag_pattern: nightly
-          target_branch: 'scarthgap'
+          target_branch: 'wrynose'
           delete_tags: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

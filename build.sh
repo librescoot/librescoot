@@ -11,7 +11,7 @@ if [ -z "$1" ]; then
 fi
 
 TARGET=$1
-BRANCH=${2:-scarthgap}  # Default to scarthgap branch if not specified
+BRANCH=${2:-wrynose}  # Default to wrynose branch if not specified
 COMMIT_ID=$(git rev-parse --short HEAD)
 
 IMAGE_NAME="yocto-librescoot:${COMMIT_ID}"

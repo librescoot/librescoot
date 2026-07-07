@@ -49,8 +49,8 @@ done
 unset _saved_overrides
 
 # Set default branch if not provided
-BRANCH="${BRANCH:-scarthgap}"
-META_LIBRESCOOT_BRANCH="${META_LIBRESCOOT_BRANCH:-scarthgap}"
+BRANCH="${BRANCH:-wrynose}"
+META_LIBRESCOOT_BRANCH="${META_LIBRESCOOT_BRANCH:-wrynose}"
 echo "Using Yocto branch: ${BRANCH}"
 echo "Using meta-librescoot branch: ${META_LIBRESCOOT_BRANCH}"
 
@@ -63,7 +63,7 @@ git config --global user.name "Yocto Builder"
 if [ ! -d .repo ]; then
     echo "Initializing repo..."
     git config --global color.ui false
-    repo init -u https://github.com/nxp-imx/imx-manifest.git -b imx-linux-scarthgap -m imx-6.6.23-2.0.0.xml
+    repo init -u https://github.com/nxp-imx/imx-manifest.git -b imx-linux-wrynose -m imx-6.18.20-2.0.0.xml
     repo sync
 fi
 
@@ -134,14 +134,13 @@ clone_layer() {
 
 git config --global --add safe.directory /yocto/sources/meta-librescoot
 
-clone_layer "meta-mender" "${LAYER_VERSION_meta_mender:-scarthgap}" "https://github.com/mendersoftware/meta-mender" "sources/meta-mender"
-clone_layer "meta-mender-community" "${LAYER_VERSION_meta_mender_community:-scarthgap}" "https://github.com/mendersoftware/meta-mender-community.git" "sources/meta-mender-community"
-clone_layer "meta-flutter" "${LAYER_VERSION_meta_flutter:-scarthgap}" "https://github.com/meta-flutter/meta-flutter.git" "sources/meta-flutter"
-clone_layer "meta-librescoot" "${LAYER_VERSION_meta_librescoot:-scarthgap}" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
-clone_layer "meta-openjdk-temurin" "${LAYER_VERSION_meta_openjdk_temurin:-scarthgap}" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
+clone_layer "meta-mender" "${LAYER_VERSION_meta_mender:-wrynose}" "https://github.com/mendersoftware/meta-mender" "sources/meta-mender"
+clone_layer "meta-mender-community" "${LAYER_VERSION_meta_mender_community:-wrynose}" "https://github.com/mendersoftware/meta-mender-community.git" "sources/meta-mender-community"
+clone_layer "meta-librescoot" "${LAYER_VERSION_meta_librescoot:-wrynose}" "https://github.com/librescoot/meta-librescoot" "sources/meta-librescoot"
+clone_layer "meta-openjdk-temurin" "${LAYER_VERSION_meta_openjdk_temurin:-main}" "https://github.com/lucimber/meta-openjdk-temurin" "sources/meta-openjdk-temurin"
 clone_layer "meta-raspberrypi" "${LAYER_VERSION_meta_raspberrypi:-scarthgap}" "https://github.com/agherzan/meta-raspberrypi.git" "sources/meta-raspberrypi"
 if [ "${TARGET}" = "rpi4" ]; then
-    clone_layer "meta-lts-mixins" "${LAYER_VERSION_meta_lts_mixins:-scarthgap}" "git://git.yoctoproject.org/meta-lts-mixins" "sources/meta-lts-mixins"
+    clone_layer "meta-lts-mixins" "${LAYER_VERSION_meta_lts_mixins:-wrynose}" "git://git.yoctoproject.org/meta-lts-mixins" "sources/meta-lts-mixins"
 fi
 
 # Determine LIBRESCOOT_VERSION - use environment variable if set, otherwise from meta-librescoot repository
@@ -173,8 +172,8 @@ BSPDIR := "${@os.path.abspath(os.path.dirname(d.getVar('FILE', True)) + '/../..'
 
 BBFILES ?= ""
 BBLAYERS = " \
-  ${BSPDIR}/sources/poky/meta \
-  ${BSPDIR}/sources/poky/meta-poky \
+  ${BSPDIR}/sources/openembedded-core/meta \
+  ${BSPDIR}/sources/meta-yocto/meta-poky \
   ${BSPDIR}/sources/meta-openembedded/meta-oe \
   ${BSPDIR}/sources/meta-openembedded/meta-multimedia \
   ${BSPDIR}/sources/meta-openembedded/meta-python \
@@ -184,7 +183,6 @@ BBLAYERS = " \
   ${BSPDIR}/sources/meta-mender/meta-mender-core \
   ${BSPDIR}/sources/meta-mender-community/meta-mender-raspberrypi \
   ${BSPDIR}/sources/meta-lts-mixins \
-  ${BSPDIR}/sources/meta-flutter \
   ${BSPDIR}/sources/meta-librescoot \
   ${BSPDIR}/sources/meta-openjdk-temurin \
   ${BSPDIR}/sources/meta-raspberrypi \
@@ -195,7 +193,8 @@ BBLAYERS += "${BSPDIR}/sources/meta-openembedded/meta-initramfs"
 # i.MX Yocto Project Release layers
 BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-bsp"
 BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-sdk"
-BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-ml"
+# meta-imx-sdk (fsl-sdk-release) has LAYERDEPENDS on perl-layer
+BBLAYERS += "${BSPDIR}/sources/meta-openembedded/meta-perl"
 BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-v2x"
 BBLAYERS += "${BSPDIR}/sources/meta-nxp-demo-experience"
 
@@ -225,7 +224,7 @@ PRSERV_HOST = "localhost:0"
 ERROR_QA:remove = "version-going-backwards"
 WARN_QA:append = " version-going-backwards"
 
-# EXTRA_IMAGE_FEATURES ?= "debug-tweaks"
+# EXTRA_IMAGE_FEATURES ?= "allow-empty-password allow-root-login empty-root-password post-install-logging"
 USER_CLASSES ?= "buildstats"
 PACKAGE_CLASSES ?= "package_rpm"
 PATCHRESOLVE = "noop"
@@ -235,7 +234,7 @@ DL_DIR ?= "/yocto/downloads/"
 ACCEPT_FSL_EULA = "1"
 LICENSE_FLAGS_ACCEPTED += "synaptics-killswitch commercial"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
-# EXTRA_IMAGE_FEATURES = "debug-tweaks"
+# EXTRA_IMAGE_FEATURES = "allow-empty-password allow-root-login empty-root-password post-install-logging"
 DEFAULT_TIMEZONE = "Europe/Berlin"
 
 # Track package sizes and file lists across builds
@@ -253,8 +252,8 @@ BSPDIR := "${@os.path.abspath(os.path.dirname(d.getVar('FILE', True)) + '/../..'
 
 BBFILES ?= ""
 BBLAYERS = " \
-  ${BSPDIR}/sources/poky/meta \
-  ${BSPDIR}/sources/poky/meta-poky \
+  ${BSPDIR}/sources/openembedded-core/meta \
+  ${BSPDIR}/sources/meta-yocto/meta-poky \
   ${BSPDIR}/sources/meta-openembedded/meta-oe \
   ${BSPDIR}/sources/meta-openembedded/meta-multimedia \
   ${BSPDIR}/sources/meta-openembedded/meta-python \
@@ -262,7 +261,6 @@ BBLAYERS = " \
   ${BSPDIR}/sources/meta-freescale-3rdparty \
   ${BSPDIR}/sources/meta-freescale-distro \
   ${BSPDIR}/sources/meta-mender/meta-mender-core \
-  ${BSPDIR}/sources/meta-flutter \
   ${BSPDIR}/sources/meta-librescoot \
   ${BSPDIR}/sources/meta-openjdk-temurin \
   "
@@ -272,7 +270,8 @@ BBLAYERS += "${BSPDIR}/sources/meta-openembedded/meta-initramfs"
 # i.MX Yocto Project Release layers
 BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-bsp"
 BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-sdk"
-BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-ml"
+# meta-imx-sdk (fsl-sdk-release) has LAYERDEPENDS on perl-layer
+BBLAYERS += "${BSPDIR}/sources/meta-openembedded/meta-perl"
 BBLAYERS += "${BSPDIR}/sources/meta-imx/meta-imx-v2x"
 BBLAYERS += "${BSPDIR}/sources/meta-nxp-demo-experience"
 
@@ -307,7 +306,7 @@ PREFERRED_PROVIDER_virtual/bootloader = "u-boot-imx"
 PREFERRED_VERSION_u-boot-imx = "2017.03"
 PREFERRED_VERSION_linux-imx = "6.6.3+git"
 
-# EXTRA_IMAGE_FEATURES ?= "debug-tweaks"
+# EXTRA_IMAGE_FEATURES ?= "allow-empty-password allow-root-login empty-root-password post-install-logging"
 USER_CLASSES ?= "buildstats"
 PACKAGE_CLASSES ?= "package_rpm"
 PATCHRESOLVE = "noop"
@@ -317,7 +316,7 @@ DL_DIR ?= "/yocto/downloads/"
 LICENSE_FLAGS_ACCEPTED += "synaptics-killswitch commercial"
 ACCEPT_FSL_EULA = "1"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
-# EXTRA_IMAGE_FEATURES = "debug-tweaks"
+# EXTRA_IMAGE_FEATURES = "allow-empty-password allow-root-login empty-root-password post-install-logging"
 DEFAULT_TIMEZONE = "Europe/Berlin"
 
 # Track package sizes and file lists across builds
@@ -335,8 +334,8 @@ BSPDIR := "${@os.path.abspath(os.path.dirname(d.getVar('FILE', True)) + '/../..'
 
 BBFILES ?= ""
 BBLAYERS = " \
-  ${BSPDIR}/sources/poky/meta \
-  ${BSPDIR}/sources/poky/meta-poky \
+  ${BSPDIR}/sources/openembedded-core/meta \
+  ${BSPDIR}/sources/meta-yocto/meta-poky \
   ${BSPDIR}/sources/meta-openembedded/meta-oe \
   ${BSPDIR}/sources/meta-openembedded/meta-multimedia \
   ${BSPDIR}/sources/meta-openembedded/meta-networking \
@@ -346,7 +345,6 @@ BBLAYERS = " \
   ${BSPDIR}/sources/meta-freescale-distro \
   ${BSPDIR}/sources/meta-mender/meta-mender-core \
   ${BSPDIR}/sources/meta-librescoot \
-  ${BSPDIR}/sources/meta-flutter \
 "
 EOL
     echo "Overwriting local.conf..."
@@ -367,7 +365,7 @@ PREFERRED_PROVIDER_virtual/kernel="linux-imx"
 PREFERRED_VERSION_linux-imx = "5.4.24+git"
 PREFERRED_VERSION_linux-libc-headers = "5.4.25"
 PREFERRED_VERSION_u-boot-imx = "2017.03"
-EXTRA_IMAGE_FEATURES ?= "debug-tweaks"
+EXTRA_IMAGE_FEATURES ?= "allow-empty-password allow-root-login empty-root-password post-install-logging"
 USER_CLASSES ?= "buildstats"
 PACKAGE_CLASSES ?= "package_rpm"
 PATCHRESOLVE = "noop"
@@ -376,7 +374,7 @@ CONF_VERSION = "2"
 DL_DIR ?= "/yocto/downloads/"
 ACCEPT_FSL_EULA = "1"
 HOSTTOOLS += "x86_64-linux-gnu-gcc git-lfs python"
-EXTRA_IMAGE_FEATURES = "debug-tweaks"
+EXTRA_IMAGE_FEATURES = "allow-empty-password allow-root-login empty-root-password post-install-logging"
 DEFAULT_TIMEZONE = "Europe/Berlin"
 ERROR_QA:remove = "version-going-backwards"
 WARN_QA:append = " version-going-backwards"

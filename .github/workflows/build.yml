@@ -27,7 +27,7 @@ on:
           - nightly
           - testing
       meta_librescoot_branch:
-        description: 'meta-librescoot branch (default: scarthgap)'
+        description: 'meta-librescoot branch (default: wrynose)'
         required: false
         default: ''
         type: string
@@ -156,7 +156,7 @@ jobs:
                # artifact is distinguishable from the regular scheduled
                # nightly (same release stream, different tree).
                BRANCH_INPUT="${{ inputs.meta_librescoot_branch }}"
-               if [ -n "$BRANCH_INPUT" ] && [ "$BRANCH_INPUT" != "scarthgap" ]; then
+               if [ -n "$BRANCH_INPUT" ] && [ "$BRANCH_INPUT" != "wrynose" ]; then
                  BRANCH_SLUG=$(echo "$BRANCH_INPUT" | tr '/' '-' | tr -cd '[:alnum:]._-')
                  VERSION="custom-nightly-${TIMESTAMP}-${BRANCH_SLUG}"
                else
@@ -295,7 +295,7 @@ jobs:
     name: Create Release
     needs: [check-changes, build, determine-version, generate-timestamp]
     # Only create releases for scheduled builds, manual triggers on main branch, or tag pushes
-    if: ${{ needs.check-changes.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/scarthgap') || startsWith(github.ref, 'refs/tags/v')) }}
+    if: ${{ needs.check-changes.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/wrynose') || startsWith(github.ref, 'refs/tags/v')) }}
     runs-on: self-hosted
     steps:
       - name: Checkout repository
