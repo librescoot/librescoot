@@ -165,9 +165,14 @@ def create_delta_patch(old_mender, new_mender, output_delta):
         with open(os.path.join(delta_dir, 'metadata.json'), 'w') as f:
             json.dump(metadata, indent=2, fp=f)
 
+        # metadata.json goes in first so a reader can check which base the
+        # delta applies to without unpacking the patches. The order is spelled
+        # out here rather than left to tarfile's directory walk.
         print(f"\nCreating delta package: {output_delta}")
         with tarfile.open(output_delta, 'w:gz') as tar:
-            tar.add(delta_dir, arcname='.')
+            tar.add(os.path.join(delta_dir, 'metadata.json'), arcname='./metadata.json')
+            for entry in ('new_files', 'patches'):
+                tar.add(os.path.join(delta_dir, entry), arcname=f'./{entry}')
         
         print("\n✓ Delta patch created successfully!")
 
