@@ -11,7 +11,6 @@ REPO_MAP = {
     "SRCREV_battery_service": "https://github.com/librescoot/battery-service",
     "SRCREV_bluetooth_service": "https://github.com/librescoot/bluetooth-service",
     "SRCREV_boot_animation": "https://github.com/librescoot/boot-animation",
-    "SRCREV_carplay_service": "https://github.com/librescoot/carplay-service",
     "SRCREV_data_server": "https://github.com/librescoot/data-server",
     "SRCREV_dbc_backlight_service": "https://github.com/librescoot/dbc-backlight-service",
     "SRCREV_dbc_dispatcher": "https://github.com/librescoot/dbc-dispatcher",
