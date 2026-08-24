@@ -353,18 +353,44 @@ jobs:
           fi
 
       - name: Create delta patches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
 
-          echo "Fetching previous release..."
-          RELEASES_JSON=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100")
+          CURL_OPTS=(--fail --silent --show-error --location --connect-timeout 15 --retry 3 --retry-delay 5)
+          # --retry-all-errors needs curl >= 7.71 and the self-hosted runner's
+          # curl is not pinned, so only pass it where it is understood.
+          if curl --retry-all-errors --version >/dev/null 2>&1; then
+            CURL_OPTS+=(--retry-all-errors)
+          fi
+          AUTH=(-H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json")
 
-          # Check if the response is valid JSON
-          if ! echo "$RELEASES_JSON" | jq empty 2>/dev/null; then
-            echo "Error: Failed to fetch releases from GitHub API or invalid JSON response."
-            echo "Response: $RELEASES_JSON"
-            echo "Skipping delta creation."
-            exit 0
+          echo "Fetching previous release..."
+          RELEASES_JSON=""
+          for ATTEMPT in 1 2 3; do
+            RESPONSE=$(curl "${CURL_OPTS[@]}" "${AUTH[@]}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100") || RESPONSE=""
+
+            # Anything that is not a JSON array is an error page or an API
+            # error object, both of which silently yield zero releases below.
+            if echo "$RESPONSE" | jq -e 'type == "array"' >/dev/null 2>&1; then
+              RELEASES_JSON="$RESPONSE"
+              break
+            fi
+
+            echo "  Attempt $ATTEMPT/3 failed, GitHub API did not return a release list."
+            echo "  Response: $RESPONSE"
+            if [ "$ATTEMPT" -lt 3 ]; then
+              sleep $((ATTEMPT * 10))
+            fi
+          done
+
+          # Publishing a release without deltas leaves a permanent hole in the
+          # delta chain, so a failed fetch has to go red instead of skipping.
+          if [ -z "$RELEASES_JSON" ]; then
+            echo "Error: Failed to fetch releases from GitHub API after 3 attempts."
+            exit 1
           fi
 
           # Determine previous release prefix based on channel
@@ -380,6 +406,7 @@ jobs:
 
           PREV_RELEASE=$(echo "$RELEASES_JSON" | jq -r "[.[] | select(.prerelease == ${{ needs.determine-version.outputs.prerelease }} and (.tag_name | startswith(\"$PREFIX\")))] | .[0]")
 
+          # First release in a channel has nothing to diff against.
           if [ "$PREV_RELEASE" == "null" ] || [ -z "$PREV_RELEASE" ]; then
             echo "No previous release found. Skipping delta creation."
             exit 0
@@ -403,26 +430,29 @@ jobs:
             VARIANT_ID="${VARIANT_MAP[$TARGET]}"
             echo "Processing target: $TARGET (variant_id: $VARIANT_ID)"
 
+            # Find the new .mender file in artifacts (exact name, see below)
+            NEW_MENDER_FILE=$(find artifacts -name "librescoot-${VARIANT_ID}-${{ needs.determine-version.outputs.version }}.mender" -type f | head -n 1)
+
+            # create-release only runs once every build job succeeded, so a
+            # missing .mender means the artifact upload or naming broke.
+            if [ -z "$NEW_MENDER_FILE" ]; then
+              echo "  Error: No new .mender file found for variant_id $VARIANT_ID."
+              exit 1
+            fi
+
             # Exact-name match: substring matching on VARIANT_ID would also
             # hit librescoot-VARIANT_ID-minimal-* bootstrap assets.
             PREV_MENDER_URL=$(echo "$PREV_RELEASE" | jq -r --arg n "librescoot-${VARIANT_ID}-${PREV_TAG}.mender" '.assets[] | select(.name == $n) | .browser_download_url')
 
             if [ -z "$PREV_MENDER_URL" ] || [ "$PREV_MENDER_URL" == "null" ]; then
-              echo "  Warning: No previous .mender file found for variant_id $VARIANT_ID. Skipping delta."
-              continue
+              echo "  Error: $PREV_TAG has no librescoot-${VARIANT_ID}-${PREV_TAG}.mender asset."
+              echo "  This build has one, so the previous release is incomplete and the delta chain would break."
+              exit 1
             fi
 
             echo "  Downloading previous .mender file..."
             PREV_MENDER_FILE="previous_release/librescoot-${VARIANT_ID}-previous.mender"
-            curl -L -o "$PREV_MENDER_FILE" "$PREV_MENDER_URL"
-
-            # Find the new .mender file in artifacts (exact name, see above)
-            NEW_MENDER_FILE=$(find artifacts -name "librescoot-${VARIANT_ID}-${{ needs.determine-version.outputs.version }}.mender" -type f | head -n 1)
-
-            if [ -z "$NEW_MENDER_FILE" ]; then
-              echo "  Warning: No new .mender file found for variant_id $VARIANT_ID. Skipping delta."
-              continue
-            fi
+            curl "${CURL_OPTS[@]}" -o "$PREV_MENDER_FILE" "$PREV_MENDER_URL"
 
             echo "  Creating delta patch..."
             echo "    Old: $PREV_MENDER_FILE"
