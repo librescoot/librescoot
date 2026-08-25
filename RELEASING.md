@@ -12,7 +12,9 @@ How a change gets from a green nightly to a tagged stable image.
 
 Both `testing` and `stable` build the same set of SRCREVs (whatever's pinned in `stable.env`). The difference is just the trigger and the version label, plus the pre-release flag on the GitHub Release. Use `testing` to validate a `stable.env` change before tagging, then push the tag.
 
-`nightly` is on its own track. It tracks AUTOREV (HEAD of every service repo), so it's only useful if you trust whatever happens to be on `scarthgap` / `main` at build time.
+`nightly` is on its own track. It tracks AUTOREV (HEAD of every service repo), so it's only useful if you trust whatever happens to be on `wrynose` / `main` at build time.
+
+`wrynose` is the current Yocto base and the default branch of this repo. `scarthgap` is the older base, covering anything before 1.2.x. It still exists, but releases are not cut from it.
 
 ## Promoting a release
 
@@ -31,7 +33,7 @@ cd librescoot
 
 git diff stable.env
 git commit stable.env -m "stable: bump <services>"
-git push origin scarthgap
+git push origin wrynose
 ```
 
 `update_env.py` rewrites `SRCREV_<service>=...` lines with the latest commit hash from each repo's GitHub HEAD.
@@ -39,7 +41,7 @@ git push origin scarthgap
 ### 2. Run a testing build
 
 ```bash
-gh workflow run build.yml --repo librescoot/librescoot --ref scarthgap -f channel=testing
+gh workflow run build.yml --repo librescoot/librescoot --ref wrynose -f channel=testing
 gh run list --repo librescoot/librescoot --workflow build.yml --limit 1
 ```
 
@@ -151,16 +153,18 @@ git push origin v0.5.0
 
 Then `update_env.py --target stable <service>` picks up the tagged commit.
 
+`update_env.py` reads each repo's HEAD, not its tags, so it only lands on the tag if you tagged HEAD. Tag first, then bump. To confirm a pin sits on a release rather than a few commits past one, `git describe --tags <sha>` in the service repo should print a bare `vX.Y.Z` with no `-N-g<sha>` suffix.
+
 ## Where things live
 
 | Concern | Repo | Branch | Path |
 |---------|------|--------|------|
-| Channel SRCREV pins (testing, stable) | `librescoot/librescoot` | `scarthgap` | `stable.env` |
-| Channel SRCREV pins (nightly, mostly AUTOREV) | `librescoot/librescoot` | `scarthgap` | `nightly.env` |
-| SRCREV bump tooling | `librescoot/librescoot` | `scarthgap` | `update_env.py` |
-| Changelog generator | `librescoot/librescoot` | `scarthgap` | `.github/workflows/scripts/changelog.sh` |
-| Build pipeline | `librescoot/librescoot` | `scarthgap` | `.github/workflows/build.yml` |
-| Image recipes | `librescoot/meta-librescoot` | `scarthgap` | Yocto layer |
+| Channel SRCREV pins (testing, stable) | `librescoot/librescoot` | `wrynose` | `stable.env` |
+| Channel SRCREV pins (nightly, mostly AUTOREV) | `librescoot/librescoot` | `wrynose` | `nightly.env` |
+| SRCREV bump tooling | `librescoot/librescoot` | `wrynose` | `update_env.py` |
+| Changelog generator | `librescoot/librescoot` | `wrynose` | `.github/workflows/scripts/changelog.sh` |
+| Build pipeline | `librescoot/librescoot` | `wrynose` | `.github/workflows/build.yml` |
+| Image recipes | `librescoot/meta-librescoot` | `wrynose` | Yocto layer |
 | librescoot.org canonical | `librescoot/librescoot.github.io` | `stable` | served at `librescoot.org/` |
 | librescoot.org dev preview | `librescoot/librescoot.github.io` | `main` | served at `librescoot.org/dev/` |
 | librescoot.org version list | `librescoot/librescoot.github.io` | both | `_data/versions.yml` |
@@ -174,7 +178,7 @@ If a stable build is bad, revert `stable.env` and re-tag:
 ```bash
 cd librescoot
 git revert <bad-commit>
-git push origin scarthgap
+git push origin wrynose
 git tag -a v1.1.1 -m "revert v1.1.0: <reason>"
 git push origin v1.1.1
 ```
