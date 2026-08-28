@@ -232,6 +232,8 @@ jobs:
           sudo chown 999:999 yocto
 
       - name: Build firmware
+        id: build
+        continue-on-error: true
         run: |
           sed -i 's/docker run -it/docker run -i/' build.sh
           sed -i 's/docker run -it/docker run -i/' interactive.sh
@@ -241,7 +243,60 @@ jobs:
           LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
           BUILD_CHANNEL="${{ needs.determine-version.outputs.channel }}" \
           LIBRESCOOT_VERSION="${{ needs.determine-version.outputs.version }}" \
-          ./build.sh ${{ matrix.target }}
+          ./build.sh ${{ matrix.target }} 2>&1 | tee build.log
+
+      - name: Recover from pseudo abort and retry
+        if: steps.build.outcome == 'failure'
+        run: |
+          # Cancelling a build mid do_image_* leaves pseudo's inode database
+          # for that recipe's WORKDIR out of sync with the rootfs, and every
+          # rerun fails identically until the WORKDIR is cleared. Only that
+          # recipe's WORKDIR is removed here; sstate-cache and downloads are
+          # never touched, so bitbake restores from sstate on the retry.
+          if ! grep -qE "abort\(\)ing pseudo client|Pseudo_Abort" build.log; then
+            echo "::error::Build failed and is not a pseudo abort, see log above."
+            exit 1
+          fi
+
+          echo "::warning::Detected a pseudo abort, cleaning the affected recipe's WORKDIR and retrying once."
+
+          RECIPE=$(grep -oE '^ERROR: [A-Za-z0-9._+-]+ do_[A-Za-z0-9_]+:' build.log \
+            | head -n1 \
+            | sed -E 's/^ERROR: //; s/ do_.*$//; s/-[0-9][^ -]*-r[0-9]+$//') || true
+
+          if [ -z "$RECIPE" ]; then
+            echo "::error::Could not determine the failing recipe from the pseudo abort log."
+            exit 1
+          fi
+          echo "Recipe: $RECIPE"
+
+          find yocto/build/tmp/work -type f -path "*/${RECIPE}/*/pseudo/pseudo.log" 2>/dev/null | while read -r LOG; do
+            echo "::group::pseudo.log ($LOG)"
+            cat "$LOG"
+            echo "::endgroup::"
+          done || true
+
+          find yocto/build/tmp/work -mindepth 2 -maxdepth 2 -type d -name "$RECIPE" -print0 \
+            | xargs -0 -r sudo rm -rf
+
+          sed -i 's/docker run -it/docker run -i/' build.sh
+          sed -i 's/docker run -it/docker run -i/' interactive.sh
+          sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
+
+          set +e
+          LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
+          BUILD_CHANNEL="${{ needs.determine-version.outputs.channel }}" \
+          LIBRESCOOT_VERSION="${{ needs.determine-version.outputs.version }}" \
+          ./build.sh ${{ matrix.target }} 2>&1 | tee build-retry.log
+          RETRY_STATUS=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$RETRY_STATUS" -ne 0 ]; then
+            echo "::error::Retry after pseudo-abort recovery also failed."
+            exit 1
+          fi
+
+          echo "Retry succeeded after pseudo-abort recovery."
 
       - name: Verify systemd unit graph
         run: |
