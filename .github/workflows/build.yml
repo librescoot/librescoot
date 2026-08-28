@@ -12,7 +12,12 @@ permissions:
 
 on:
   schedule:
-    - cron: '0 1 * * *'
+    # Not on the hour: GitHub documents the schedule event as delayed, and
+    # queued runs as droppable, during high load, and names the start of every
+    # hour as a high load window. Observed here as 01:00 nominal against 02:10,
+    # 02:17 and 10:43 actual, with created_at equal to run_started_at each time,
+    # so the lateness is in GitHub's scheduler rather than in our runners.
+    - cron: '37 1 * * *'
   push:
     tags:
       - 'v*'
