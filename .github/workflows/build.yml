@@ -36,6 +36,11 @@ on:
         required: false
         default: ''
         type: string
+      minimal_only:
+        description: 'Build only mdb-minimal and dbc-minimal (no release)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   check-changes:
@@ -121,6 +126,30 @@ jobs:
           echo "timestamp_iso=$TIMESTAMP_ISO" >> $GITHUB_OUTPUT
           echo "Generated timestamp: $TIMESTAMP ($TIMESTAMP_ISO)"
 
+  determine-matrix:
+    name: Determine Build Matrix
+    runs-on: self-hosted
+    outputs:
+      include: ${{ steps.set-matrix.outputs.include }}
+    steps:
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          if [ "${{ inputs.minimal_only }}" == "true" ]; then
+            INCLUDE='[
+              {"target":"mdb-minimal","runs_on":"mdb","variant_id":"unu-mdb-minimal"},
+              {"target":"dbc-minimal","runs_on":"dbc","variant_id":"unu-dbc-minimal"}
+            ]'
+          else
+            INCLUDE='[
+              {"target":"mdb","runs_on":"mdb","variant_id":"unu-mdb"},
+              {"target":"dbc","runs_on":"dbc","variant_id":"unu-dbc"},
+              {"target":"mdb-minimal","runs_on":"mdb","variant_id":"unu-mdb-minimal"},
+              {"target":"dbc-minimal","runs_on":"dbc","variant_id":"unu-dbc-minimal"}
+            ]'
+          fi
+          echo "include=$(echo "$INCLUDE" | jq -c .)" >> $GITHUB_OUTPUT
+
   determine-version:
     name: Determine Version
     needs: [generate-timestamp]
@@ -183,24 +212,12 @@ jobs:
 
   build:
     name: Build Firmware (${{ matrix.target }})
-    needs: [check-changes, determine-version]
+    needs: [check-changes, determine-version, determine-matrix]
     if: ${{ needs.check-changes.outputs.has_changes == 'true' }}
     runs-on: ${{ matrix.runs_on }}
     strategy:
       matrix:
-        include:
-          - target: mdb
-            runs_on: mdb
-            variant_id: unu-mdb
-          - target: dbc
-            runs_on: dbc
-            variant_id: unu-dbc
-          - target: mdb-minimal
-            runs_on: mdb
-            variant_id: unu-mdb-minimal
-          - target: dbc-minimal
-            runs_on: dbc
-            variant_id: unu-dbc-minimal
+        include: ${{ fromJson(needs.determine-matrix.outputs.include) }}
       fail-fast: false
     steps:
       - name: Checkout repository
@@ -321,8 +338,9 @@ jobs:
   create-release:
     name: Create Release
     needs: [check-changes, build, determine-version, generate-timestamp]
-    # Only create releases for scheduled builds, manual triggers on main branch, or tag pushes
-    if: ${{ needs.check-changes.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/wrynose') || startsWith(github.ref, 'refs/tags/v')) }}
+    # Only create releases for scheduled builds, manual triggers on main branch, or tag pushes.
+    # A minimal-only dispatch never releases, regardless of ref.
+    if: ${{ needs.check-changes.outputs.has_changes == 'true' && inputs.minimal_only != true && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/wrynose') || startsWith(github.ref, 'refs/tags/v')) }}
     runs-on: self-hosted
     steps:
       - name: Checkout repository
