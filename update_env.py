@@ -16,6 +16,7 @@ REPO_MAP = {
     "SRCREV_dbc_dispatcher": "https://github.com/librescoot/dbc-dispatcher",
     "SRCREV_ecu_service": "https://github.com/librescoot/ecu-service",
     "SRCREV_keycard_service": "https://github.com/librescoot/keycard-service",
+    "SRCREV_linux_imx_led": "https://github.com/librescoot/kernel-module-imx-pwm-led",
     "SRCREV_lsc": "https://github.com/librescoot/lsc",
     "SRCREV_modem_service": "https://github.com/librescoot/modem-service",
     "SRCREV_motion_service": "https://github.com/librescoot/motion-service",
@@ -33,6 +34,10 @@ REPO_MAP = {
 
 LAYER_REPO_MAP = {
     "LAYER_VERSION_meta_librescoot": "https://github.com/librescoot/meta-librescoot",
+}
+
+REPO_BRANCH_MAP = {
+    "SRCREV_linux_imx_led": "refs/heads/kernel-6.12",
 }
 
 def get_latest_commit(url, branch="HEAD"):
@@ -84,8 +89,8 @@ def update_env_file(filepath, target_mode, allowed_keys):
                 current_val_match = re.match(r'^[A-Z_]+[a-z0-9_]*="(.*)"$', line.strip())
                 current_val = current_val_match.group(1) if current_val_match else ""
 
-                # Use the branch from DISTRO_CODENAME-aware default for layers
-                branch = "HEAD"
+                # Use a non-default production branch where the component requires one.
+                branch = REPO_BRANCH_MAP.get(key, "HEAD")
                 if key in LAYER_REPO_MAP:
                     # If current value looks like a branch name (not a hex hash), use it as the ref
                     if current_val and not re.match(r'^[0-9a-f]{40}$', current_val):
