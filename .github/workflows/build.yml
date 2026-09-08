@@ -236,6 +236,7 @@ jobs:
         id: build
         continue-on-error: true
         run: |
+          set -o pipefail
           sed -i 's/docker run -it/docker run -i/' build.sh
           sed -i 's/docker run -it/docker run -i/' interactive.sh
           sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
