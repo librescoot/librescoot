@@ -57,6 +57,7 @@ jobs:
             "librescoot/librescoot"
             "librescoot/meta-librescoot"
             "librescoot/ecu-service"
+            "librescoot/event-service"
             "librescoot/vehicle-service"
             "librescoot/battery-service"
             "librescoot/bluetooth-service"
