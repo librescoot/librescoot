@@ -55,7 +55,10 @@ ssh deep-blue 'lsc ota check'
 ssh deep-blue 'lsc ota status'
 ```
 
-Wait for both partitions to install, reboot, and come back `idle` on the new `testing-<TIMESTAMP>`. Smoke-test what changed.
+Wait for both partitions to install, reboot, and come back `idle` on the new `testing-<TIMESTAMP>`. Smoke-test what changed, plus these release-wide checks:
+
+- **MDB time synchronization:** `chronyc tracking` on the MDB must report a normal leap status and a current reference time from an external NTP source.
+- **MDB → DBC time synchronization:** after the DBC boots with its unsaved RTC, `chronyc sources` on the DBC must select the MDB and the DBC clock must converge to the MDB clock. Test this over the normal USB link, whose transport addresses are `192.168.9.1/24` and `192.168.9.2/24`, not only over PPP.
 
 ### 4. Tag stable
 
