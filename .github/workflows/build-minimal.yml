@@ -1,0 +1,56 @@
+name: Build minimal images
+run-name: 'Minimal images: ${{ inputs.channel }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Source versions (testing uses stable.env pins)'
+        required: true
+        default: testing
+        type: choice
+        options:
+          - testing
+          - nightly
+      meta_librescoot_branch:
+        description: 'Optional meta-librescoot ref override (otherwise use channel pins)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Generate build version
+    runs-on: self-hosted
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Set version
+        id: version
+        run: echo "version=minimal-$(date -u '+%Y%m%dT%H%M%S')-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build minimal image (${{ matrix.target }})
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: mdb-minimal
+            runs_on: mdb
+            variant_id: unu-mdb-minimal
+          - target: dbc-minimal
+            runs_on: dbc
+            variant_id: unu-dbc-minimal
+    uses: ./.github/workflows/build-firmware.yml
+    with:
+      target: ${{ matrix.target }}
+      runs_on: ${{ matrix.runs_on }}
+      variant_id: ${{ matrix.variant_id }}
+      version: ${{ needs.prepare.outputs.version }}
+      channel: ${{ inputs.channel }}
+      meta_librescoot_branch: ${{ inputs.meta_librescoot_branch }}
+      retention_days: 90

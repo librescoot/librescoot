@@ -16,6 +16,41 @@ Both `testing` and `stable` build the same set of SRCREVs (whatever's pinned in 
 
 `wrynose` is the current Yocto base and the default branch of this repo. `scarthgap` is the older base, covering anything before 1.2.x. It still exists, but releases are not cut from it.
 
+## Minimal bootstrap images
+
+Scheduled builds, release tags and manual `build.yml` runs build only the full
+MDB and DBC images. Minimal bootstrap images are rebuilt separately, on purpose:
+
+```bash
+gh workflow run build-minimal.yml --repo librescoot/librescoot --ref wrynose -f channel=testing
+```
+
+The **Build minimal images** workflow builds both `mdb-minimal` and `dbc-minimal`.
+It defaults to `testing` (`stable.env` pins); select `nightly` for floating service
+revisions. An optional `meta_librescoot_branch` input overrides the channel's
+meta-librescoot ref.
+
+Download the `.sdimg.gz` images and available `.sdimg.bmap` files from the run's
+Actions artifacts. They are retained for 90 days, subject to repository retention
+limits; archive them separately if needed longer. This workflow creates no GitHub
+release, delta patches or site rebuilds. Existing release assets are unchanged.
+The former `build.yml` input `minimal_only` is replaced by this workflow.
+
+Both workflows use `build-firmware.yml` for the same build, pseudo-abort recovery,
+systemd verification and artifact packaging steps. Image compression uses `pigz`
+at level 9 with at most eight threads; runners install it on demand if missing.
+
+Release metadata is prepared in one job. Dashboard builds use Yocto's normal
+source-revision and dependency tracking instead of unconditionally cleaning
+`scootui-qt`, preserving incremental build state.
+
+Offline workflow contract tests (requires Python 3, PyYAML, Bash, jq, gzip and
+pigz; the packaging test skips if pigz is unavailable):
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
+```
+
 ## Promoting a release
 
 The full path: bump SRCREVs, run a `testing` build, soak it, push a tag for `stable`, bump the docs sites.

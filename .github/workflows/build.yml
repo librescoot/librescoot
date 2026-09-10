@@ -36,18 +36,19 @@ on:
         required: false
         default: ''
         type: string
-      minimal_only:
-        description: 'Build only mdb-minimal and dbc-minimal (no release)'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
-  check-changes:
-    name: Check for Changes
+  prepare:
+    name: Prepare Build
     runs-on: self-hosted
     outputs:
       has_changes: ${{ steps.check.outputs.has_changes }}
+      timestamp: ${{ steps.set-timestamp.outputs.timestamp }}
+      timestamp_iso: ${{ steps.set-timestamp.outputs.timestamp_iso }}
+      version: ${{ steps.set-version.outputs.version }}
+      tag: ${{ steps.set-version.outputs.tag }}
+      prerelease: ${{ steps.set-version.outputs.prerelease }}
+      channel: ${{ steps.set-version.outputs.channel }}
     steps:
       - name: Get latest commits
         id: check
@@ -109,13 +110,6 @@ jobs:
           echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
           echo "has_changes=${HAS_CHANGES}"
 
-  generate-timestamp:
-    name: Generate Build Timestamp
-    runs-on: self-hosted
-    outputs:
-      timestamp: ${{ steps.set-timestamp.outputs.timestamp }}
-      timestamp_iso: ${{ steps.set-timestamp.outputs.timestamp_iso }}
-    steps:
       - name: Set timestamp
         id: set-timestamp
         run: |
@@ -127,44 +121,10 @@ jobs:
           echo "timestamp_iso=$TIMESTAMP_ISO" >> $GITHUB_OUTPUT
           echo "Generated timestamp: $TIMESTAMP ($TIMESTAMP_ISO)"
 
-  determine-matrix:
-    name: Determine Build Matrix
-    runs-on: self-hosted
-    outputs:
-      include: ${{ steps.set-matrix.outputs.include }}
-    steps:
-      - name: Set matrix
-        id: set-matrix
-        run: |
-          if [ "${{ inputs.minimal_only }}" == "true" ]; then
-            INCLUDE='[
-              {"target":"mdb-minimal","runs_on":"mdb","variant_id":"unu-mdb-minimal"},
-              {"target":"dbc-minimal","runs_on":"dbc","variant_id":"unu-dbc-minimal"}
-            ]'
-          else
-            INCLUDE='[
-              {"target":"mdb","runs_on":"mdb","variant_id":"unu-mdb"},
-              {"target":"dbc","runs_on":"dbc","variant_id":"unu-dbc"},
-              {"target":"mdb-minimal","runs_on":"mdb","variant_id":"unu-mdb-minimal"},
-              {"target":"dbc-minimal","runs_on":"dbc","variant_id":"unu-dbc-minimal"}
-            ]'
-          fi
-          echo "include=$(echo "$INCLUDE" | jq -c .)" >> $GITHUB_OUTPUT
-
-  determine-version:
-    name: Determine Version
-    needs: [generate-timestamp]
-    runs-on: self-hosted
-    outputs:
-      version: ${{ steps.set-version.outputs.version }}
-      tag: ${{ steps.set-version.outputs.tag }}
-      prerelease: ${{ steps.set-version.outputs.prerelease }}
-      channel: ${{ steps.set-version.outputs.channel }}
-    steps:
       - name: Set version and tag
         id: set-version
         run: |
-          TIMESTAMP="${{ needs.generate-timestamp.outputs.timestamp }}"
+          TIMESTAMP="${{ steps.set-timestamp.outputs.timestamp }}"
           
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
              # Triggered by tag
@@ -213,191 +173,32 @@ jobs:
 
   build:
     name: Build Firmware (${{ matrix.target }})
-    needs: [check-changes, determine-version, determine-matrix]
-    if: ${{ needs.check-changes.outputs.has_changes == 'true' }}
-    runs-on: ${{ matrix.runs_on }}
+    needs: prepare
+    if: ${{ needs.prepare.outputs.has_changes == 'true' }}
     strategy:
-      matrix:
-        include: ${{ fromJson(needs.determine-matrix.outputs.include) }}
       fail-fast: false
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          clean: false
-
-      - name: Create Yocto directory
-        run: |
-          mkdir -p yocto
-          sudo chown 999:999 yocto
-
-      - name: Build firmware
-        id: build
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          sed -i 's/docker run -it/docker run -i/' build.sh
-          sed -i 's/docker run -it/docker run -i/' interactive.sh
-          sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
-
-          # Use the determined version
-          LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
-          BUILD_CHANNEL="${{ needs.determine-version.outputs.channel }}" \
-          LIBRESCOOT_VERSION="${{ needs.determine-version.outputs.version }}" \
-          ./build.sh ${{ matrix.target }} 2>&1 | tee build.log
-
-      - name: Recover from pseudo abort and retry
-        if: steps.build.outcome == 'failure'
-        run: |
-          # Cancelling a build mid do_image_* leaves pseudo's inode database
-          # for that recipe's WORKDIR out of sync with the rootfs, and every
-          # rerun fails identically until the WORKDIR is cleared. Only that
-          # recipe's WORKDIR is removed here; sstate-cache and downloads are
-          # never touched, so bitbake restores from sstate on the retry.
-          if ! grep -qE "abort\(\)ing pseudo client|Pseudo_Abort" build.log; then
-            echo "::error::Build failed and is not a pseudo abort, see log above."
-            exit 1
-          fi
-
-          echo "::warning::Detected a pseudo abort, cleaning the affected recipe's WORKDIR and retrying once."
-
-          RECIPE=$(grep -oE '^ERROR: [A-Za-z0-9._+-]+ do_[A-Za-z0-9_]+:' build.log \
-            | head -n1 \
-            | sed -E 's/^ERROR: //; s/ do_.*$//; s/-[0-9][^ -]*-r[0-9]+$//') || true
-
-          if [ -z "$RECIPE" ]; then
-            echo "::error::Could not determine the failing recipe from the pseudo abort log."
-            exit 1
-          fi
-          echo "Recipe: $RECIPE"
-
-          find yocto/build/tmp/work -type f -path "*/${RECIPE}/*/pseudo/pseudo.log" 2>/dev/null | while read -r LOG; do
-            echo "::group::pseudo.log ($LOG)"
-            cat "$LOG"
-            echo "::endgroup::"
-          done || true
-
-          find yocto/build/tmp/work -mindepth 2 -maxdepth 2 -type d -name "$RECIPE" -print0 \
-            | xargs -0 -r sudo rm -rf
-
-          sed -i 's/docker run -it/docker run -i/' build.sh
-          sed -i 's/docker run -it/docker run -i/' interactive.sh
-          sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
-
-          set +e
-          LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
-          BUILD_CHANNEL="${{ needs.determine-version.outputs.channel }}" \
-          LIBRESCOOT_VERSION="${{ needs.determine-version.outputs.version }}" \
-          ./build.sh ${{ matrix.target }} 2>&1 | tee build-retry.log
-          RETRY_STATUS=${PIPESTATUS[0]}
-          set -e
-
-          if [ "$RETRY_STATUS" -ne 0 ]; then
-            echo "::error::Retry after pseudo-abort recovery also failed."
-            exit 1
-          fi
-
-          echo "Retry succeeded after pseudo-abort recovery."
-
-      - name: Verify systemd unit graph
-        run: |
-          set -uo pipefail
-
-          ROOTFS=$(sudo find yocto/build -maxdepth 7 -type d \
-            -path "*/work/*/librescoot-${{ matrix.target }}-image/*/rootfs" \
-            -print -quit 2>/dev/null)
-
-          if [ -z "$ROOTFS" ]; then
-            echo "::warning::Could not locate rootfs; skipping systemd verify"
-            exit 0
-          fi
-          echo "rootfs: $ROOTFS"
-
-          if ! command -v systemd-analyze >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends systemd
-          fi
-
-          LOG=$(mktemp)
-          # systemd-analyze verify exits 0 even when it reports a cycle, so
-          # we capture the output and grep for the marker string instead.
-          sudo systemd-analyze verify --root="$ROOTFS" \
-            default.target multi-user.target sysinit.target \
-            2>&1 | tee "$LOG" || true
-
-          if grep -qE "ordering cycle|deleted to break ordering" "$LOG"; then
-            echo "::error::systemd detected an ordering cycle in the built rootfs - see log above"
-            exit 1
-          fi
-
-      - name: Prepare artifacts
-        run: |
-          sudo rm -rf artifacts/*
-          mkdir -p artifacts/${{ matrix.target }}
-          VERSION="${{ needs.determine-version.outputs.version }}"
-          
-          if [ "${{ matrix.target }}" = "mdb" ]; then
-            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-mdb"
-            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
-            sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg
-            cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
-            cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
-            cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
-            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
-            tar -chzf artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-boot-${VERSION}.tar.gz \
-              -C ${DEPLOY_DIR} zImage librescoot-mdb.dtb u-boot-dtb.imx
-          elif [ "${{ matrix.target }}" = "mdb-minimal" ]; then
-            # Bootstrap image: only the flashable sdimg is useful. No .mender
-            # (nobody OTAs onto a minimal image) and no boot tarball (boot
-            # bits are identical to the full mdb image's).
-            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-mdb"
-            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz
-            sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg
-            cp ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
-            cp ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
-            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz
-          elif [ "${{ matrix.target }}" = "dbc-minimal" ]; then
-            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-dbc"
-            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz
-            sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg
-            cp ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
-            cp ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
-            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz
-          elif [ "${{ matrix.target }}" = "dbc" ]; then
-            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-dbc"
-            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz
-            sudo gzip -f -k -9 ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg
-            cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
-            cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
-            cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
-            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz
-            tar -chzf artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-boot-${VERSION}.tar.gz \
-              -C ${DEPLOY_DIR} zImage librescoot-dbc.dtb u-boot-dtb.imx
-          else
-            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
-            sudo gzip -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg
-            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.gz
-            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.bmap artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.sdimg.bmap || true
-            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.mender artifacts/${{ matrix.target }}/librescoot-${{ matrix.variant_id }}-${VERSION}.mender
-            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
-          fi
-          ls -l artifacts/*
-
-      - name: Upload firmware artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: librescoot-${{ matrix.variant_id }}-${{ needs.determine-version.outputs.version }}
-          path: artifacts/${{ matrix.target }}/*
-          retention-days: 1
-          compression-level: 0
+      matrix:
+        include:
+          - target: mdb
+            runs_on: mdb
+            variant_id: unu-mdb
+          - target: dbc
+            runs_on: dbc
+            variant_id: unu-dbc
+    uses: ./.github/workflows/build-firmware.yml
+    with:
+      target: ${{ matrix.target }}
+      runs_on: ${{ matrix.runs_on }}
+      variant_id: ${{ matrix.variant_id }}
+      version: ${{ needs.prepare.outputs.version }}
+      channel: ${{ needs.prepare.outputs.channel }}
+      meta_librescoot_branch: ${{ inputs.meta_librescoot_branch || '' }}
 
   create-release:
     name: Create Release
-    needs: [check-changes, build, determine-version, generate-timestamp]
+    needs: [prepare, build]
     # Only create releases for scheduled builds, manual triggers on main branch, or tag pushes.
-    # A minimal-only dispatch never releases, regardless of ref.
-    if: ${{ needs.check-changes.outputs.has_changes == 'true' && inputs.minimal_only != true && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/wrynose') || startsWith(github.ref, 'refs/tags/v')) }}
+    if: ${{ needs.prepare.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/wrynose') || startsWith(github.ref, 'refs/tags/v')) }}
     runs-on: self-hosted
     steps:
       - name: Checkout repository
@@ -474,7 +275,7 @@ jobs:
           fi
 
           # Determine previous release prefix based on channel
-          CHANNEL="${{ needs.determine-version.outputs.channel }}"
+          CHANNEL="${{ needs.prepare.outputs.channel }}"
           if [ "$CHANNEL" == "nightly" ]; then
              PREFIX="nightly-"
           elif [ "$CHANNEL" == "testing" ]; then
@@ -484,7 +285,7 @@ jobs:
              PREFIX="v"
           fi
 
-          PREV_RELEASE=$(echo "$RELEASES_JSON" | jq -r "[.[] | select(.prerelease == ${{ needs.determine-version.outputs.prerelease }} and (.tag_name | startswith(\"$PREFIX\")))] | .[0]")
+          PREV_RELEASE=$(echo "$RELEASES_JSON" | jq -r "[.[] | select(.prerelease == ${{ needs.prepare.outputs.prerelease }} and (.tag_name | startswith(\"$PREFIX\")))] | .[0]")
 
           # First release in a channel has nothing to diff against.
           if [ "$PREV_RELEASE" == "null" ] || [ -z "$PREV_RELEASE" ]; then
@@ -511,7 +312,7 @@ jobs:
             echo "Processing target: $TARGET (variant_id: $VARIANT_ID)"
 
             # Find the new .mender file in artifacts (exact name, see below)
-            NEW_MENDER_FILE=$(find artifacts -name "librescoot-${VARIANT_ID}-${{ needs.determine-version.outputs.version }}.mender" -type f | head -n 1)
+            NEW_MENDER_FILE=$(find artifacts -name "librescoot-${VARIANT_ID}-${{ needs.prepare.outputs.version }}.mender" -type f | head -n 1)
 
             # create-release only runs once every build job succeeded, so a
             # missing .mender means the artifact upload or naming broke.
@@ -539,7 +340,7 @@ jobs:
             echo "    New: $NEW_MENDER_FILE"
 
             # Extract version from new mender filename for output name
-            VERSION="${{ needs.determine-version.outputs.version }}"
+            VERSION="${{ needs.prepare.outputs.version }}"
             OUTPUT_DELTA="artifacts/librescoot-${VARIANT_ID}-${VERSION}.delta"
 
             # Ensure the output directory exists
@@ -574,9 +375,9 @@ jobs:
       - name: Generate changelog
         id: changelog
         env:
-          CHANNEL: ${{ needs.determine-version.outputs.channel }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
           CURRENT_SHA: ${{ github.sha }}
-          UNTIL_ISO: ${{ needs.generate-timestamp.outputs.timestamp_iso }}
+          UNTIL_ISO: ${{ needs.prepare.outputs.timestamp_iso }}
           REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash .github/workflows/scripts/changelog.sh
@@ -585,15 +386,15 @@ jobs:
         if: steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2.4.2
         with:
-          name: ${{ needs.determine-version.outputs.channel }} Build ${{ needs.determine-version.outputs.version }}
-          tag_name: ${{ needs.determine-version.outputs.tag }}
-          prerelease: ${{ needs.determine-version.outputs.prerelease }}
+          name: ${{ needs.prepare.outputs.channel }} Build ${{ needs.prepare.outputs.version }}
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          prerelease: ${{ needs.prepare.outputs.prerelease }}
           files: |
             artifacts/**/*
           body: |
-            ${{ needs.determine-version.outputs.channel == 'nightly' && '🌙' || (needs.determine-version.outputs.channel == 'testing' && '🧪' || '🚀') }} ${{ needs.determine-version.outputs.channel }} build of LibreScoot (version ${{ needs.determine-version.outputs.version }})
+            ${{ needs.prepare.outputs.channel == 'nightly' && '🌙' || (needs.prepare.outputs.channel == 'testing' && '🧪' || '🚀') }} ${{ needs.prepare.outputs.channel }} build of LibreScoot (version ${{ needs.prepare.outputs.version }})
 
-            This is a ${{ needs.determine-version.outputs.channel }} build with version ${{ needs.determine-version.outputs.version }} from commit ${{ github.sha }}.
+            This is a ${{ needs.prepare.outputs.channel }} build with version ${{ needs.prepare.outputs.version }} from commit ${{ github.sha }}.
             
             ## Changelog
             ${{ steps.changelog.outputs.content }}

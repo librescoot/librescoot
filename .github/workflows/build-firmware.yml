@@ -1,0 +1,217 @@
+name: Build firmware artifacts
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        required: true
+        type: string
+      runs_on:
+        required: true
+        type: string
+      variant_id:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      channel:
+        required: true
+        type: string
+      meta_librescoot_branch:
+        default: ''
+        type: string
+      retention_days:
+        default: 1
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Firmware (${{ inputs.target }})
+    runs-on: ${{ inputs.runs_on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          clean: false
+
+      - name: Create Yocto directory
+        run: |
+          mkdir -p yocto
+          sudo chown 999:999 yocto
+
+      - name: Build firmware
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          sed -i 's/docker run -it/docker run -i/' build.sh
+          sed -i 's/docker run -it/docker run -i/' interactive.sh
+          sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
+
+          # Use the determined version
+          LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
+          BUILD_CHANNEL="${{ inputs.channel }}" \
+          LIBRESCOOT_VERSION="${{ inputs.version }}" \
+          ./build.sh ${{ inputs.target }} 2>&1 | tee build.log
+
+      - name: Recover from pseudo abort and retry
+        if: steps.build.outcome == 'failure'
+        run: |
+          # Cancelling a build mid do_image_* leaves pseudo's inode database
+          # for that recipe's WORKDIR out of sync with the rootfs, and every
+          # rerun fails identically until the WORKDIR is cleared. Only that
+          # recipe's WORKDIR is removed here; sstate-cache and downloads are
+          # never touched, so bitbake restores from sstate on the retry.
+          if ! grep -qE "abort\(\)ing pseudo client|Pseudo_Abort" build.log; then
+            echo "::error::Build failed and is not a pseudo abort, see log above."
+            exit 1
+          fi
+
+          echo "::warning::Detected a pseudo abort, cleaning the affected recipe's WORKDIR and retrying once."
+
+          RECIPE=$(grep -oE '^ERROR: [A-Za-z0-9._+-]+ do_[A-Za-z0-9_]+:' build.log \
+            | head -n1 \
+            | sed -E 's/^ERROR: //; s/ do_.*$//; s/-[0-9][^ -]*-r[0-9]+$//') || true
+
+          if [ -z "$RECIPE" ]; then
+            echo "::error::Could not determine the failing recipe from the pseudo abort log."
+            exit 1
+          fi
+          echo "Recipe: $RECIPE"
+
+          find yocto/build/tmp/work -type f -path "*/${RECIPE}/*/pseudo/pseudo.log" 2>/dev/null | while read -r LOG; do
+            echo "::group::pseudo.log ($LOG)"
+            cat "$LOG"
+            echo "::endgroup::"
+          done || true
+
+          find yocto/build/tmp/work -mindepth 2 -maxdepth 2 -type d -name "$RECIPE" -print0 \
+            | xargs -0 -r sudo rm -rf
+
+          sed -i 's/docker run -it/docker run -i/' build.sh
+          sed -i 's/docker run -it/docker run -i/' interactive.sh
+          sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
+
+          set +e
+          LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
+          BUILD_CHANNEL="${{ inputs.channel }}" \
+          LIBRESCOOT_VERSION="${{ inputs.version }}" \
+          ./build.sh ${{ inputs.target }} 2>&1 | tee build-retry.log
+          RETRY_STATUS=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$RETRY_STATUS" -ne 0 ]; then
+            echo "::error::Retry after pseudo-abort recovery also failed."
+            exit 1
+          fi
+
+          echo "Retry succeeded after pseudo-abort recovery."
+
+      - name: Verify systemd unit graph
+        run: |
+          set -uo pipefail
+
+          ROOTFS=$(sudo find yocto/build -maxdepth 7 -type d \
+            -path "*/work/*/librescoot-${{ inputs.target }}-image/*/rootfs" \
+            -print -quit 2>/dev/null)
+
+          if [ -z "$ROOTFS" ]; then
+            echo "::warning::Could not locate rootfs; skipping systemd verify"
+            exit 0
+          fi
+          echo "rootfs: $ROOTFS"
+
+          if ! command -v systemd-analyze >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends systemd
+          fi
+
+          LOG=$(mktemp)
+          # systemd-analyze verify exits 0 even when it reports a cycle, so
+          # we capture the output and grep for the marker string instead.
+          sudo systemd-analyze verify --root="$ROOTFS" \
+            default.target multi-user.target sysinit.target \
+            2>&1 | tee "$LOG" || true
+
+          if grep -qE "ordering cycle|deleted to break ordering" "$LOG"; then
+            echo "::error::systemd detected an ordering cycle in the built rootfs - see log above"
+            exit 1
+          fi
+
+      - name: Ensure parallel gzip is installed
+        run: |
+          if ! command -v pigz >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends pigz
+          fi
+
+      - name: Prepare artifacts
+        run: |
+          # Bound compression CPU use on shared self-hosted machines.
+          COMPRESSION_THREADS=$(nproc)
+          if [ "$COMPRESSION_THREADS" -gt 8 ]; then
+            COMPRESSION_THREADS=8
+          fi
+          sudo rm -rf artifacts/*
+          mkdir -p artifacts/${{ inputs.target }}
+          VERSION="${{ inputs.version }}"
+
+          if [ "${{ inputs.target }}" = "mdb" ]; then
+            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-mdb"
+            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
+            sudo pigz -p "$COMPRESSION_THREADS" -f -k -9 ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg
+            cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.bmap artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.sdimg.bmap || true
+            cp ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.mender artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.mender
+            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-image-unu-mdb-*.sdimg.gz
+            tar -chzf artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-boot-${VERSION}.tar.gz \
+              -C ${DEPLOY_DIR} zImage librescoot-mdb.dtb u-boot-dtb.imx
+          elif [ "${{ inputs.target }}" = "mdb-minimal" ]; then
+            # Bootstrap image: only the flashable sdimg is useful. No .mender
+            # (nobody OTAs onto a minimal image) and no boot tarball (boot
+            # bits are identical to the full mdb image's).
+            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-mdb"
+            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz
+            sudo pigz -p "$COMPRESSION_THREADS" -f -k -9 ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg
+            cp ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.bmap artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.sdimg.bmap || true
+            sudo rm -f ${DEPLOY_DIR}/librescoot-mdb-minimal-image-unu-mdb-*.sdimg.gz
+          elif [ "${{ inputs.target }}" = "dbc-minimal" ]; then
+            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-dbc"
+            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz
+            sudo pigz -p "$COMPRESSION_THREADS" -f -k -9 ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg
+            cp ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.bmap artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.sdimg.bmap || true
+            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-minimal-image-unu-dbc-*.sdimg.gz
+          elif [ "${{ inputs.target }}" = "dbc" ]; then
+            DEPLOY_DIR="yocto/build/tmp/deploy/images/unu-dbc"
+            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz
+            sudo pigz -p "$COMPRESSION_THREADS" -f -k -9 ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg
+            cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.sdimg.gz
+            cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.bmap artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.sdimg.bmap || true
+            cp ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.mender artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.mender
+            sudo rm -f ${DEPLOY_DIR}/librescoot-dbc-image-unu-dbc-*.sdimg.gz
+            tar -chzf artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-boot-${VERSION}.tar.gz \
+              -C ${DEPLOY_DIR} zImage librescoot-dbc.dtb u-boot-dtb.imx
+          else
+            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
+            sudo pigz -p "$COMPRESSION_THREADS" -f -k -9 yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.sdimg.gz
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.bmap artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.sdimg.bmap || true
+            cp yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.mender artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${VERSION}.mender
+            sudo rm -f yocto/build/tmp/deploy/images/librescoot-dbc-rpi4/librescoot-dbc-image-librescoot-dbc-rpi4-*.sdimg.gz
+          fi
+          ls -l artifacts/*
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: librescoot-${{ inputs.variant_id }}-${{ inputs.version }}
+          path: artifacts/${{ inputs.target }}/*
+          retention-days: ${{ inputs.retention_days }}
+          compression-level: 0
