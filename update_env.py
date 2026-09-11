@@ -15,6 +15,7 @@ REPO_MAP = {
     "SRCREV_dbc_backlight_service": "https://github.com/librescoot/dbc-backlight-service",
     "SRCREV_dbc_dispatcher": "https://github.com/librescoot/dbc-dispatcher",
     "SRCREV_ecu_service": "https://github.com/librescoot/ecu-service",
+    "SRCREV_event_service": "https://github.com/librescoot/event-service",
     "SRCREV_keycard_service": "https://github.com/librescoot/keycard-service",
     "SRCREV_linux_imx_led": "https://github.com/librescoot/kernel-module-imx-pwm-led",
     "SRCREV_lsc": "https://github.com/librescoot/lsc",
