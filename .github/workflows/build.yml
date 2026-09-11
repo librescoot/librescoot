@@ -1,10 +1,15 @@
 name: Builds
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
+    && inputs.channel == 'nightly'
+    && inputs.meta_librescoot_branch != ''
+    && inputs.meta_librescoot_branch != 'wrynose'
+    && format('Custom build: {0} (meta: {1})', inputs.channel, inputs.meta_librescoot_branch)
+    || github.event_name == 'workflow_dispatch'
     && format('Manual build: {0}{1}',
         inputs.channel || 'nightly',
         inputs.meta_librescoot_branch != '' && format(' (meta: {0})', inputs.meta_librescoot_branch) || '')
-    || github.event_name == 'schedule' && 'Nightly build (scheduled)'
+    || github.event_name == 'schedule' && 'Scheduled build: nightly'
     || format('Build {0}', github.ref_name) }}
 
 permissions:
