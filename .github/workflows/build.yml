@@ -225,8 +225,11 @@ jobs:
 
       - name: Install xdelta3
         run: |
-          sudo apt-get update
-          sudo apt-get install -y xdelta3
+          if ! command -v xdelta3 >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo env DEBIAN_FRONTEND=noninteractive \
+              apt-get -o DPkg::Lock::Timeout=300 install -y xdelta3
+          fi
 
       - name: Debug - List artifacts directory
         run: |

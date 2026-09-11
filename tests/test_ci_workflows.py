@@ -119,6 +119,47 @@ class WorkflowTests(unittest.TestCase):
                       tmp, RESPONSE=response, GITHUB_OUTPUT=str(output))
                 self.assertEqual(output.read_text().strip(), f'has_changes={expected}')
 
+    def test_xdelta_install_is_idempotent_and_bounded(self):
+        steps = workflow('build.yml')['jobs']['create-release']['steps']
+        script = next(s['run'] for s in steps if s['name'] == 'Install xdelta3')
+        prelude = '''
+command() {
+    if [ "$1" = -v ] && [ "$2" = xdelta3 ]; then
+        return "$XDELTA_STATUS"
+    fi
+    builtin command "$@"
+}
+sudo() {
+    printf '%s\\n' "$*" >> "$CALLS"
+    case "$*" in
+        *" install "*) return "${INSTALL_STATUS:-0}" ;;
+    esac
+}
+'''
+        with tempfile.TemporaryDirectory() as tmp:
+            calls = Path(tmp) / 'calls'
+            shell(prelude + script, tmp, XDELTA_STATUS='0', CALLS=str(calls))
+            self.assertFalse(calls.exists())
+
+        expected_calls = [
+            'apt-get update',
+            'env DEBIAN_FRONTEND=noninteractive apt-get -o '
+            'DPkg::Lock::Timeout=300 install -y xdelta3',
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            calls = Path(tmp) / 'calls'
+            shell(prelude + script, tmp, XDELTA_STATUS='1', CALLS=str(calls))
+            self.assertEqual(calls.read_text().splitlines(), expected_calls)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            calls = Path(tmp) / 'calls'
+            result = subprocess.run(
+                ['bash', '-e', '-o', 'pipefail', '-c', prelude + script], cwd=tmp,
+                env={**os.environ, 'XDELTA_STATUS': '1', 'INSTALL_STATUS': '100',
+                     'CALLS': str(calls)}, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 100)
+            self.assertEqual(calls.read_text().splitlines(), expected_calls)
+
     @unittest.skipUnless(shutil.which('pigz'), 'pigz required')
     def test_artifact_packaging(self):
         steps = workflow('build-firmware.yml')['jobs']['build']['steps']
