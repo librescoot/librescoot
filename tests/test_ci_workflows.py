@@ -26,41 +26,21 @@ class WorkflowTests(unittest.TestCase):
     def test_run_name_categories(self):
         run_name = workflow('build.yml')['run-name']
         normalized = ' '.join(run_name.split())
-        self.assertIn("inputs.channel == 'nightly'", normalized)
-        self.assertIn("inputs.meta_librescoot_branch != ''", normalized)
-        self.assertIn("inputs.meta_librescoot_branch != 'wrynose'", normalized)
-        self.assertIn("format('Custom build: {0} (meta: {1})'", normalized)
-        self.assertIn("format('Manual build: {0}{1}'", normalized)
-        self.assertIn("'Scheduled build: nightly'", normalized)
-        self.assertTrue(normalized.endswith("format('Build {0}', github.ref_name) }}"))
-
-        def expected_name(event, channel='', meta_branch='', ref_name='wrynose'):
-            if event == 'workflow_dispatch' and channel == 'nightly' \
-                    and meta_branch not in ('', 'wrynose'):
-                return f'Custom build: {channel} (meta: {meta_branch})'
-            if event == 'workflow_dispatch':
-                suffix = f' (meta: {meta_branch})' if meta_branch else ''
-                return f'Manual build: {channel or "nightly"}{suffix}'
-            if event == 'schedule':
-                return 'Scheduled build: nightly'
-            return f'Build {ref_name}'
-
-        cases = [
-            ('schedule', '', '', 'wrynose', 'Scheduled build: nightly'),
-            ('workflow_dispatch', 'nightly', '', 'wrynose', 'Manual build: nightly'),
-            ('workflow_dispatch', 'nightly', 'wrynose', 'wrynose',
-             'Manual build: nightly (meta: wrynose)'),
-            ('workflow_dispatch', 'nightly', 'feature/ui', 'wrynose',
-             'Custom build: nightly (meta: feature/ui)'),
-            ('workflow_dispatch', 'nightly', 'a' * 40, 'wrynose',
-             f'Custom build: nightly (meta: {"a" * 40})'),
-            ('workflow_dispatch', 'testing', 'feature/ui', 'wrynose',
-             'Manual build: testing (meta: feature/ui)'),
-            ('push', '', '', 'v1.3.2', 'Build v1.3.2'),
-        ]
-        for event, channel, meta_branch, ref_name, expected in cases:
-            with self.subTest(event=event, channel=channel, meta_branch=meta_branch):
-                self.assertEqual(expected_name(event, channel, meta_branch, ref_name), expected)
+        expected = (
+            "${{ github.event_name == 'workflow_dispatch' "
+            "&& inputs.channel == 'nightly' "
+            "&& inputs.meta_librescoot_branch != '' "
+            "&& inputs.meta_librescoot_branch != 'wrynose' "
+            "&& format('Custom build: {0} (meta: {1})', inputs.channel, "
+            "inputs.meta_librescoot_branch) "
+            "|| github.event_name == 'workflow_dispatch' "
+            "&& format('Manual build: {0}{1}', inputs.channel || 'nightly', "
+            "inputs.meta_librescoot_branch != '' "
+            "&& format(' (meta: {0})', inputs.meta_librescoot_branch) || '') "
+            "|| github.event_name == 'schedule' && 'Scheduled build: nightly' "
+            "|| format('Build {0}', github.ref_name) }}"
+        )
+        self.assertEqual(normalized, expected)
 
     def test_release_and_minimal_targets(self):
         release = workflow('build.yml')
