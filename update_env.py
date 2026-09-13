@@ -38,6 +38,7 @@ LAYER_REPO_MAP = {
 }
 
 REPO_BRANCH_MAP = {
+    "SRCREV_boot_animation": "refs/heads/fix/0xbw-smooth-rendering",
     "SRCREV_linux_imx_led": "refs/heads/kernel-6.12",
 }
 
