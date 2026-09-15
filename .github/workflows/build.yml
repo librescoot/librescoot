@@ -73,6 +73,7 @@ jobs:
             "librescoot/modem-service"
             "librescoot/ums-service"
             "librescoot/settings-service"
+            "librescoot/trip-service"
             "librescoot/dbc-backlight-service"
             "librescoot/lsc"
             "librescoot/alarm-service"

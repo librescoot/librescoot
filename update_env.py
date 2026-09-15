@@ -26,6 +26,7 @@ REPO_MAP = {
     "SRCREV_scootui_qt": "https://github.com/librescoot/scootui-qt",
     "SRCREV_scootui_tui": "https://github.com/librescoot/scootui-tui",
     "SRCREV_settings_service": "https://github.com/librescoot/settings-service",
+    "SRCREV_trip_service": "https://github.com/librescoot/trip-service",
     "SRCREV_ums_service": "https://github.com/librescoot/ums-service",
     "SRCREV_update_service": "https://github.com/librescoot/update-service",
     "SRCREV_uplink_service": "https://github.com/librescoot/uplink-service",
