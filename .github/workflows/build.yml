@@ -217,12 +217,21 @@ jobs:
         run: |
           sudo rm -rf artifacts/*
 
-      - name: Download all artifacts
+      - name: Download DBC artifact
         uses: actions/download-artifact@v8
         env:
           NODE_OPTIONS: --no-deprecation
         with:
-          path: artifacts
+          name: librescoot-unu-dbc-${{ needs.prepare.outputs.version }}
+          path: artifacts/librescoot-unu-dbc-${{ needs.prepare.outputs.version }}
+
+      - name: Download MDB artifact
+        uses: actions/download-artifact@v8
+        env:
+          NODE_OPTIONS: --no-deprecation
+        with:
+          name: librescoot-unu-mdb-${{ needs.prepare.outputs.version }}
+          path: artifacts/librescoot-unu-mdb-${{ needs.prepare.outputs.version }}
 
       - name: Install xdelta3
         run: |
