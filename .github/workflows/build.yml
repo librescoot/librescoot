@@ -391,6 +391,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash .github/workflows/scripts/changelog.sh
 
+      # The release body used to carry ${{ github.event.repository.updated_at }},
+      # which is when the *repository* was last pushed, not when this build ran: a
+      # nightly built today would claim a build time from whenever the last commit
+      # to this repo landed, and every nightly since would repeat that same line.
+      # Stamp the moment the notes are written instead - this step runs immediately
+      # before the release is created, so it is the build's completion time.
+      - name: Timestamp release notes
+        id: stamp
+        run: echo "completed_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
       - name: Create Github release
         if: steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v3
@@ -408,7 +418,7 @@ jobs:
             ## Changelog
             ${{ steps.changelog.outputs.content }}
             
-            Build completed at: ${{ github.event.repository.updated_at }}
+            Build completed at: ${{ steps.stamp.outputs.completed_at }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
