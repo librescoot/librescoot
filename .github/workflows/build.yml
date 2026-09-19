@@ -411,7 +411,7 @@ jobs:
           files: |
             artifacts/**/*
           body: |
-            ${{ needs.prepare.outputs.channel == 'nightly' && '🌙' || (needs.prepare.outputs.channel == 'testing' && '🧪' || '🚀') }} ${{ needs.prepare.outputs.channel }} build of LibreScoot (version ${{ needs.prepare.outputs.version }})
+            ${{ needs.prepare.outputs.channel == 'nightly' && '🌙' || (needs.prepare.outputs.channel == 'testing' && '🧪' || '🚀') }} ${{ needs.prepare.outputs.channel }} build of Librescoot (version ${{ needs.prepare.outputs.version }})
 
             This is a ${{ needs.prepare.outputs.channel }} build with version ${{ needs.prepare.outputs.version }} from commit ${{ github.sha }}.
             

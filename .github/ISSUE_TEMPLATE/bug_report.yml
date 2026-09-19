@@ -1,5 +1,5 @@
 name: Bug report
-description: Something is broken or behaving wrong with LibreScoot.
+description: Something is broken or behaving wrong with Librescoot.
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for taking the time to report a bug.
 
-        This form is for problems with **LibreScoot firmware**. If you're running stock unu firmware, or you're not sure what's installed, please ask on [Discord](https://discord.gg/VrumFruSzJ) instead.
+        This form is for problems with **Librescoot firmware**. If you're running stock unu firmware, or you're not sure what's installed, please ask on [Discord](https://discord.gg/VrumFruSzJ) instead.
 
         Fill in what you know — the optional fields are genuinely optional.
 
@@ -60,7 +60,7 @@ body:
     id: version
     attributes:
       label: Firmware version, if you know it
-      description: Visible in the LibreScoot updates screen on the display, or via `lsc status` if you have shell access. Leave blank if you don't know.
+      description: Visible in the Librescoot updates screen on the display, or via `lsc status` if you have shell access. Leave blank if you don't know.
       placeholder: e.g. v0.5.0 or 2026-04-20-nightly
 
   - type: textarea

@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest something LibreScoot should do.
+description: Suggest something Librescoot should do.
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
@@ -8,12 +8,12 @@ body:
       value: |
         Thanks for suggesting a feature.
 
-        This form is for **LibreScoot** features. For general scooter questions or discussion, use [Discord](https://discord.gg/VrumFruSzJ).
+        This form is for **Librescoot** features. For general scooter questions or discussion, use [Discord](https://discord.gg/VrumFruSzJ).
 
   - type: textarea
     id: what
     attributes:
-      label: What do you want LibreScoot to do?
+      label: What do you want Librescoot to do?
       placeholder: e.g. "Show estimated remaining range on the display, based on current battery level and recent consumption."
     validations:
       required: true
