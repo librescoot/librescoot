@@ -22,7 +22,8 @@ on:
     # hour as a high load window. Observed here as 01:00 nominal against 02:10,
     # 02:17 and 10:43 actual, with created_at equal to run_started_at each time,
     # so the lateness is in GitHub's scheduler rather than in our runners.
-    - cron: '37 1 * * *'
+    - cron: '57 0 * * *'
+      timezone: 'Europe/Berlin'
   push:
     tags:
       - 'v*'
