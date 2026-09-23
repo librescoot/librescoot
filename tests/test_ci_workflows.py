@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tarfile
 import tempfile
 import unittest
 
@@ -154,8 +155,11 @@ sudo() {
                 (deploy / f'{stem}.sdimg').write_bytes(image)
                 (deploy / f'{stem}.sdimg.bmap').write_text('bmap')
                 (deploy / f'{stem}.mender').write_text('mender')
-                for boot in ['zImage', f'librescoot-{board}.dtb', 'u-boot-dtb.imx']:
-                    (deploy / boot).write_text('boot')
+                # Only the boot asset the bundle carries. A kernel or DTB here is a
+                # trap: U-Boot loads both from the rootfs slot, alongside the modules
+                # that belong to them.
+                (deploy / 'u-boot-dtb.imx').write_text('boot')
+                (deploy / 'zImage').write_text('kernel')
                 rendered = script
                 for key, value in {'inputs.target': target, 'inputs.variant_id': f'unu-{target}',
                                    'inputs.version': 'test-version'}.items():
@@ -168,6 +172,9 @@ sudo() {
                 if not target.endswith('-minimal'):
                     names |= {f'{prefix}-test-version.mender', f'{prefix}-boot-test-version.tar.gz'}
                 self.assertEqual({p.name for p in artifacts.iterdir()}, names)
+                if not target.endswith('-minimal'):
+                    with tarfile.open(artifacts / f'{prefix}-boot-test-version.tar.gz') as tar:
+                        self.assertEqual(tar.getnames(), ['u-boot-dtb.imx'])
                 result = subprocess.run(['gzip', '-dc', str(artifacts / f'{prefix}-test-version.sdimg.gz')],
                                         capture_output=True, check=True)
                 self.assertEqual(result.stdout, image)
