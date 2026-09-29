@@ -118,7 +118,17 @@ Two sites. Neither uses a `stable` branch any more, whatever an older copy of th
 
 Every version is a folder on `main`: `docs/<minor>/` for frozen stable snapshots, `docs/dev/`
 for the working tree, with German mirrors under `de/docs/`. There is no `stable` branch on the
-remote. Promoting a minor is one script plus a review:
+remote. Keep the settings overview in step with each stable release:
+
+- For a patch release, update `docs/<minor>/settings.html` for any settings
+  added or changed in that release, with the patch-version markers used on the
+  page. Review the schema revision pinned in `stable.env` to confirm the page
+  matches the released image.
+- When promoting a new minor, update `docs/dev/settings.html` to match the
+  settings schema pinned for the release and carry forward patch-version
+  markers. The promotion script copies this page into the new minor snapshot.
+
+Promoting a minor is one script plus a review:
 
 ```bash
 cd librescoot.github.io
