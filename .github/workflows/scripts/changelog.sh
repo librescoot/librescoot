@@ -177,13 +177,18 @@ commits_timewindow() {
 }
 
 parse_env_var() {
-  # Extract a single variable's value from an env file, stripping surrounding
-  # double quotes. Returns empty if not found.
+  # Read values without executing the file; version comments are not refs.
   local file="$1" name="$2"
   awk -v name="$name" '
     $0 ~ "^[[:space:]]*"name"=" {
       sub("^[[:space:]]*"name"=", "", $0)
-      gsub(/^"|"$/, "", $0)
+      sub(/^[[:space:]]*/, "", $0)
+      if (substr($0, 1, 1) == "\"") {
+        sub(/^"/, "", $0)
+        sub(/".*$/, "", $0)
+      } else {
+        sub(/[[:space:]#].*$/, "", $0)
+      }
       print
       exit
     }' "$file"
