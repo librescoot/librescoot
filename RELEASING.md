@@ -51,6 +51,30 @@ pigz; the packaging test skips if pigz is unavailable):
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
 ```
 
+## Signed artifact delta compatibility
+
+`mender-delta-create.py` includes the target `version`, `manifest`, optional
+`manifest.sig` and `header.tar.gz` verbatim as new metadata. They are never
+xdelta-patched. This lets a compatible update-service reconstruct a signed
+artifact without changing the signed manifest or losing its signature.
+A signed target needs an update-service repacker that retains `manifest.sig`
+immediately after `manifest`; older repackers omit it.
+
+Offline generator regressions run with the workflow tests:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
+```
+
+For real signing and reconstruction tests, see the
+[update-service test instructions](https://github.com/librescoot/update-service#signed-artifact-and-delta-compatibility).
+They use disposable keys, the artifact tool and optionally the actual Mender
+client with an isolated test module. These tests need no production secrets.
+
+The generator handles signed and unsigned targets; it does not verify their
+signatures or authorize a release. Publishing signed artifacts and configuring
+client signature enforcement are separate release steps.
+
 ## Promoting a release
 
 The full path: bump SRCREVs, run a `testing` build, soak it, push a tag for `stable`, bump the docs sites.

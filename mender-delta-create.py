@@ -125,9 +125,9 @@ def create_delta_patch(old_mender, new_mender, output_delta):
             old_file_path = os.path.join(old_dir, rel_path)
             new_file_path = os.path.join(new_dir, rel_path)
 
-            # *** THE CRITICAL CHANGE IS HERE ***
-            # Treat metadata files as "new" to avoid brittle patches.
-            if rel_path in ['manifest', 'header.tar.gz']:
+            # Metadata and its signature travel verbatim. The device's xdelta
+            # path reconstructs the payload, not arbitrary metadata files.
+            if rel_path in ['version', 'manifest', 'manifest.sig', 'header.tar.gz']:
                 print(f"  Including new metadata file: {rel_path}")
                 dest_path = os.path.join(new_files_dir, rel_path)
                 os.makedirs(os.path.dirname(dest_path), exist_ok=True)
