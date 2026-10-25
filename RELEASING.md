@@ -51,6 +51,18 @@ pigz; the packaging test skips if pigz is unavailable):
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
 ```
 
+## Software bills of materials
+
+Each firmware build retains Yocto's self-contained SPDX 3 image document as
+`librescoot-<variant>-<version>.spdx.json.gz`. It includes the image's package,
+file, relationship and license graph, not just the image recipe. A missing or
+incomplete image document fails artifact collection.
+
+The compressed document is included in the board's Actions artifact. Full
+nightly, testing and stable releases also publish it as a release asset covered
+by `SHA256SUMS`. Minimal builds retain it in their Actions artifacts without
+creating a release. Decompress a document with `gzip -dc <file>.spdx.json.gz`.
+
 ## Signed artifact delta compatibility
 
 `mender-delta-create.py` includes the target `version`, `manifest`, optional

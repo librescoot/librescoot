@@ -212,6 +212,20 @@ jobs:
           fi
           ls -l artifacts/*
 
+      - name: Collect SPDX SBOM
+        run: |
+          TARGET="${{ inputs.target }}"
+          case "$TARGET" in
+            mdb|mdb-minimal) MACHINE="unu-mdb" ;;
+            dbc|dbc-minimal) MACHINE="unu-dbc" ;;
+            rpi4) TARGET="dbc"; MACHINE="librescoot-dbc-rpi4" ;;
+            *) echo "Unsupported SPDX target: $TARGET" >&2; exit 1 ;;
+          esac
+          python3 .github/workflows/scripts/collect-spdx.py \
+            "yocto/build/tmp/deploy/images/$MACHINE" \
+            "librescoot-${TARGET}-image-${MACHINE}" \
+            "artifacts/${{ inputs.target }}/librescoot-${{ inputs.variant_id }}-${{ inputs.version }}.spdx.json.gz"
+
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v7
         with:
