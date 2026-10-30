@@ -295,7 +295,7 @@ jobs:
              PREFIX="v"
           fi
 
-          PREV_RELEASE=$(echo "$RELEASES_JSON" | jq -r "[.[] | select(.prerelease == ${{ needs.prepare.outputs.prerelease }} and (.tag_name | startswith(\"$PREFIX\")))] | .[0]")
+          PREV_RELEASE=$(echo "$RELEASES_JSON" | jq -r "[.[] | select(.draft == false and .prerelease == ${{ needs.prepare.outputs.prerelease }} and (.tag_name | startswith(\"$PREFIX\")))] | .[0]")
 
           # First release in a channel has nothing to diff against.
           if [ "$PREV_RELEASE" == "null" ] || [ -z "$PREV_RELEASE" ]; then
