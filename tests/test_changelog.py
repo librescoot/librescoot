@@ -58,7 +58,10 @@ with open(os.environ['URL_LOG'], 'a') as log:
 if any(c in url for c in ' "#\\r\\n'):
     sys.exit(3)
 if '/releases?' in url:
-    body = [{'tag_name':'testing-previous', 'prerelease':True, 'published_at':'2026-10-16T06:51:18Z'}]
+    if url.endswith('&page=1'):
+        body = [{'tag_name':'testing-current', 'prerelease':True, 'draft':False}] + [{'tag_name':'nightly-other', 'prerelease':True, 'draft':False}] * 99
+    else:
+        body = [{'tag_name':'testing-withdrawn', 'prerelease':True, 'draft':True}, {'tag_name':'testing-previous', 'prerelease':True, 'draft':False, 'published_at':'2026-10-16T06:51:18Z'}]
 elif '/compare/' in url:
     body = {'commits':[{'sha':'f'*40, 'html_url':'https://example.org/commit', 'commit':{'message':'example change'}}]}
 else:
@@ -72,7 +75,7 @@ else:
             for tool in tools.iterdir():
                 tool.chmod(0o755)
             env = {**os.environ, 'PATH': str(tools) + os.pathsep + os.environ['PATH'],
-                   'CHANNEL': 'testing', 'CURRENT_SHA': '1' * 40,
+                   'CHANNEL': 'testing', 'CURRENT_TAG': 'testing-current', 'CURRENT_SHA': '1' * 40,
                    'UNTIL_ISO': '2026-10-19T21:27:29Z', 'REPO': 'librescoot/librescoot',
                    'GITHUB_TOKEN': 'test-token', 'GITHUB_OUTPUT': str(work / 'output'),
                    'OLD_ENV': str(work / 'previous.env'), 'URL_LOG': str(work / 'urls')}
@@ -80,6 +83,7 @@ else:
                                     text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             urls = [json.loads(line) for line in (work / 'urls').read_text().splitlines()]
+            self.assertTrue(any('page=2' in url for url in urls))
             comparisons = [url for url in urls if '/compare/' in url]
             self.assertEqual(comparisons, [
                 'https://api.github.com/repos/librescoot/librescoot/compare/testing-previous...' + '1' * 40,

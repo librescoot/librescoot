@@ -1,33 +1,58 @@
+"""Offline pagination and previous release selection tests."""
 import json
+import os
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
+
+SCRIPT = Path(__file__).resolve().parents[1] / '.github/workflows/scripts/previous-release.sh'
 
 
 class DeltaReleaseSelectionTests(unittest.TestCase):
-    def select(self, releases, prefix, prerelease):
-        workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/build.yml').read_text()
-        line = next(line for line in workflow.splitlines() if 'PREV_RELEASE=$(' in line)
-        expression = line.split('| jq -r "', 1)[1].rsplit('")', 1)[0]
-        expression = expression.replace('${{ needs.prepare.outputs.prerelease }}', json.dumps(prerelease))
-        expression = expression.replace('$PREFIX', prefix).replace('\\"', '"')
-        return json.loads(subprocess.check_output(['jq', '-r', expression], input=json.dumps(releases), text=True))
+    def select(self, pages, channel='stable', current='v1.4.0'):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'pages.json').write_text(json.dumps(pages))
+            curl = root / 'curl'
+            curl.write_text('''#!/usr/bin/env python3
+import json, os, sys
+page = int(sys.argv[-1].split('page=')[-1])
+entry = json.load(open(os.environ['PAGES']))[page - 1]
+if entry == 'HTTP_ERROR': sys.exit(22)
+print(json.dumps(entry))
+''')
+            curl.chmod(0o755)
+            env = {**os.environ, 'PATH': tmp + os.pathsep + os.environ['PATH'],
+                   'PAGES': str(root / 'pages.json'), 'REPO': 'owner/repo',
+                   'CHANNEL': channel, 'CURRENT_TAG': current, 'GITHUB_TOKEN': 'test'}
+            return subprocess.run(['bash', str(SCRIPT)], env=env, text=True, capture_output=True)
 
-    def test_ignore_withdrawn_drafts_in_every_channel(self):
-        for prefix, prerelease in [('testing-', True), ('nightly-', True), ('v', False)]:
-            with self.subTest(prefix=prefix):
-                releases = [
-                    dict(tag_name=prefix + 'new', draft=True, prerelease=prerelease),
-                    dict(tag_name='unrelated', draft=False, prerelease=prerelease),
-                    dict(tag_name=prefix + 'wrong-kind', draft=False, prerelease=not prerelease),
-                    dict(tag_name=prefix + 'published', draft=False, prerelease=prerelease),
-                    dict(tag_name=prefix + 'older', draft=False, prerelease=prerelease),
-                ]
-                self.assertEqual(self.select(releases, prefix, prerelease), releases[3])
+    def test_page_two_excludes_current_drafts_and_wrong_kind(self):
+        for channel, prefix, prerelease, current in [('stable', 'v', False, 'v1.4.0'),
+                ('testing', 'testing-', True, 'testing-current'), ('nightly', 'nightly-', True, 'nightly-current')]:
+            with self.subTest(channel=channel):
+                def release(tag, draft=False, pre=prerelease):
+                    return dict(tag_name=tag, draft=draft, prerelease=pre)
+                first = [release(current), release(prefix + 'withdrawn', True),
+                         release(prefix + 'wrong', pre=not prerelease)] + [release('other')] * 97
+                expected = release(prefix + 'previous')
+                result = self.select([first, [expected]], channel, current)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads(result.stdout), expected)
 
-    def test_only_drafts_has_no_delta_base(self):
-        releases = [dict(tag_name='testing-withdrawn', draft=True, prerelease=True)]
-        self.assertIsNone(self.select(releases, 'testing-', True))
+    def test_no_release(self):
+        result = self.select([[dict(tag_name='v1.4.0', draft=False, prerelease=False)]])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIsNone(json.loads(result.stdout))
+
+    def test_page_two_errors_fail_closed(self):
+        first = [dict(tag_name='nightly-x', draft=False, prerelease=True)] * 100
+        for error in ['HTTP_ERROR', {'message': 'error'}, 'not json array']:
+            with self.subTest(error=error):
+                result = self.select([first, error])
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, '')
 
 
 if __name__ == '__main__':

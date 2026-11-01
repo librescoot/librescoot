@@ -101,12 +101,7 @@ NIGHTLY_TIMEWINDOW_REPOS=(
 CHANGELOG=""
 HAS_CHANGES=false
 
-RELEASES_JSON=$(curl -sS "${AUTH[@]}" \
-  "https://api.github.com/repos/${REPO}/releases?per_page=100")
-if ! echo "$RELEASES_JSON" | jq empty 2>/dev/null; then
-  echo "Warning: could not parse releases JSON from GitHub API" >&2
-  RELEASES_JSON="[]"
-fi
+PREV_RELEASE=$(bash "$(dirname "${BASH_SOURCE[0]}")/previous-release.sh")
 
 # Append a commit list (same shape as list-commits or .commits[] from compare)
 # under a section header for the given repo. Returns non-zero when there are
@@ -215,14 +210,10 @@ timewindow_changelog() {
     testing) prefix="testing-" ;;
     stable)  prefix="v" ;;
   esac
-
-  prev_tag=$(echo "$RELEASES_JSON" | jq -r \
-    "[.[] | select(.tag_name | startswith(\"${prefix}\"))] | .[0].tag_name // empty")
-
+  prev_tag=$(jq -r '.tag_name // empty' <<< "$PREV_RELEASE")
   if [ -n "$prev_tag" ]; then
     if [ "$CHANNEL" = "stable" ]; then
-      since=$(echo "$RELEASES_JSON" | jq -r \
-        "[.[] | select(.tag_name == \"${prev_tag}\")] | .[0].published_at // empty")
+      since=$(jq -r '.published_at // empty' <<< "$PREV_RELEASE")
     else
       tag_ts=${prev_tag#"$prefix"}
       since=$(echo "$tag_ts" | sed 's/\([0-9]\{4\}\)\([0-9]\{2\}\)\([0-9]\{2\}\)T\([0-9]\{2\}\)\([0-9]\{2\}\)\([0-9]\{2\}\)/\1-\2-\3T\4:\5:\6Z/')
@@ -243,19 +234,9 @@ timewindow_changelog() {
 }
 
 srcrev_changelog() {
-  local prev_tag="" prev_published_at=""
-
-  if [ "$CHANNEL" = "stable" ]; then
-    prev_tag=$(echo "$RELEASES_JSON" | jq -r \
-      '[.[] | select(.prerelease == false and (.tag_name | startswith("v")))] | .[0].tag_name // empty')
-    prev_published_at=$(echo "$RELEASES_JSON" | jq -r \
-      '[.[] | select(.prerelease == false and (.tag_name | startswith("v")))] | .[0].published_at // empty')
-  else
-    prev_tag=$(echo "$RELEASES_JSON" | jq -r \
-      '[.[] | select(.prerelease == true and (.tag_name | startswith("testing-")))] | .[0].tag_name // empty')
-    prev_published_at=$(echo "$RELEASES_JSON" | jq -r \
-      '[.[] | select(.prerelease == true and (.tag_name | startswith("testing-")))] | .[0].published_at // empty')
-  fi
+  local prev_tag prev_published_at
+  prev_tag=$(jq -r '.tag_name // empty' <<< "$PREV_RELEASE")
+  prev_published_at=$(jq -r '.published_at // empty' <<< "$PREV_RELEASE")
 
   local curr_env="stable.env"
   if [ ! -f "$curr_env" ]; then
@@ -272,7 +253,7 @@ srcrev_changelog() {
   echo "Diffing ${CHANNEL} against previous release ${prev_tag}" >&2
 
   # Make sure the previous tag is present locally before git show.
-  git fetch --tags --force origin >/dev/null 2>&1 || true
+  git fetch origin "refs/tags/${prev_tag}:refs/tags/${prev_tag}" >/dev/null 2>&1 || true
 
   local prev_env
   prev_env=$(mktemp)
