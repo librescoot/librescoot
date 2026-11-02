@@ -397,15 +397,6 @@ for var in $(compgen -v | grep '^SRCREV_'); do
     fi
 done
 
-# The radio release version is opt-in and checked against its pinned checkout.
-if [ -n "${RADIO_GAGA_RELEASE_VERSION}" ]; then
-    if [[ ! "$RADIO_GAGA_RELEASE_VERSION" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-        echo "Invalid radio-gaga release version: ${RADIO_GAGA_RELEASE_VERSION}" >&2
-        exit 1
-    fi
-    echo "LIBRESCOOT_GO_RELEASE_VERSION:pn-radio-gaga = \"${RADIO_GAGA_RELEASE_VERSION}\"" >> /yocto/build/conf/local.conf
-fi
-
 # Apply DISTRO_CODENAME override if set
 if [ -n "$DISTRO_CODENAME" ]; then
     echo "Overriding DISTRO_CODENAME with ${DISTRO_CODENAME}"
