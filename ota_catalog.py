@@ -34,6 +34,7 @@ def inspect_artifact(filename, variant, version, url):
         # The xdelta input is the entire uncompressed payload tar, including padding.
         with gzip.GzipFile(fileobj=artifact.extractfile(payloads[0])) as payload:
             payload_hash = stream_digest(payload)
+            payload_size = payload.tell()
         with gzip.GzipFile(fileobj=artifact.extractfile(payloads[0])) as payload:
             with tarfile.open(fileobj=payload, mode='r|') as rootfs:
                 members = (m for m in rootfs if m.isfile())
@@ -50,7 +51,7 @@ def inspect_artifact(filename, variant, version, url):
         transport_hash = stream_digest(f)
     return dict(id=identity, variant_id=variant, version=version, artifact_name=name,
                 device_types=devices, manifest_sha256=manifest_hash, header_sha256=header_hash,
-                rootfs_sha256=rootfs_hash, payload_tar_sha256=payload_hash,
+                rootfs_sha256=rootfs_hash, payload_tar_sha256=payload_hash, payload_tar_size=payload_size,
                 full=dict(url=url, size=Path(filename).stat().st_size, sha256=transport_hash))
 
 
