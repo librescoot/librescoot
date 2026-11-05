@@ -37,6 +37,20 @@ on:
         options:
           - nightly
           - testing
+          - stable
+      ota_feed:
+        description: 'OTA audience (canary releases are excluded from normal channel indexes)'
+        required: true
+        default: releases
+        type: choice
+        options:
+          - releases
+          - canary
+      canary_stable_version:
+        description: 'Unpublished vX.Y.Z label for a canary stable build'
+        required: false
+        default: ''
+        type: string
       allow_testing_return:
         description: 'Create return deltas to current stable after data-compatibility testing'
         required: false
@@ -135,6 +149,8 @@ jobs:
 
       - name: Set version and tag
         id: set-version
+        env:
+          CANARY_STABLE_VERSION: ${{ inputs.canary_stable_version }}
         run: |
           TIMESTAMP="${{ steps.set-timestamp.outputs.timestamp }}"
           
@@ -152,7 +168,19 @@ jobs:
                CHANNEL="nightly"
              fi
              
-             if [ "$CHANNEL" == "testing" ]; then
+             if [ "$CHANNEL" == "stable" ]; then
+               if [ '${{ inputs.ota_feed }}' != 'canary' ]; then
+                 echo 'Manual stable builds are only allowed in the isolated canary feed' >&2
+                 exit 1
+               fi
+               VERSION="$CANARY_STABLE_VERSION"
+               if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                 echo 'A canary stable build needs an unpublished vX.Y.Z version' >&2
+                 exit 1
+               fi
+               TAG="$VERSION"
+               PRERELEASE="true"
+             elif [ "$CHANNEL" == "testing" ]; then
                VERSION="testing-${TIMESTAMP}"
                TAG="$VERSION"
                PRERELEASE="true"
@@ -173,6 +201,15 @@ jobs:
              fi
           fi
           
+          if [ '${{ inputs.ota_feed }}' = 'canary' ]; then
+            if [ "$CHANNEL" = 'nightly' ]; then
+              echo 'The v2 canary feed supports stable and testing only' >&2
+              exit 1
+            fi
+            TAG="canary-${VERSION}"
+            PRERELEASE="true"
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
@@ -346,7 +383,9 @@ jobs:
           python3 .github/workflows/scripts/cross-channel-deltas.py \
             --channel '${{ needs.prepare.outputs.channel }}' \
             --version '${{ needs.prepare.outputs.version }}' \
-            --repo '${{ github.repository }}' "${args[@]}"
+            --repo '${{ github.repository }}' \
+            --release-tag '${{ needs.prepare.outputs.tag }}' \
+            --feed '${{ inputs.ota_feed || 'releases' }}' "${args[@]}"
 
       - name: Generate SHA256SUMS
         run: |

@@ -22,8 +22,12 @@ def inspect_artifact(filename, variant, version, url):
     with tarfile.open(filename, 'r:') as artifact:
         manifest = artifact.extractfile('manifest').read()
         header = artifact.extractfile('header.tar.gz').read()
+        updater_protocol = 0
         with tarfile.open(fileobj=io.BytesIO(header), mode='r:gz') as headers:
             info = json.load(headers.extractfile('header-info'))
+            if 'headers/0000/type-info' in headers.getnames():
+                type_info = json.load(headers.extractfile('headers/0000/type-info'))
+                updater_protocol = int(type_info.get('artifact_provides', {}).get('rootfs-image.librescoot-updater-protocol', '0'))
         name = info['artifact_provides']['artifact_name']
         devices = info['artifact_depends']['device_type']
         if variant not in devices or name != 'release-' + version:
@@ -51,7 +55,7 @@ def inspect_artifact(filename, variant, version, url):
         transport_hash = stream_digest(f)
     return dict(id=identity, variant_id=variant, version=version, artifact_name=name,
                 device_types=devices, manifest_sha256=manifest_hash, header_sha256=header_hash,
-                rootfs_sha256=rootfs_hash, payload_tar_sha256=payload_hash, payload_tar_size=payload_size,
+                rootfs_sha256=rootfs_hash, payload_tar_sha256=payload_hash, payload_tar_size=payload_size, updater_protocol=updater_protocol,
                 full=dict(url=url, size=Path(filename).stat().st_size, sha256=transport_hash))
 
 

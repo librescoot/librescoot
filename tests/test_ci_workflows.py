@@ -84,6 +84,20 @@ class WorkflowTests(unittest.TestCase):
                 self.assertEqual(values, {'version': version, 'tag': version,
                                           'channel': expected_channel, 'prerelease': prerelease})
 
+    def test_canary_builds_have_separate_release_tags(self):
+        script = next(s['run'] for s in workflow('build.yml')['jobs']['prepare']['steps'] if s.get('id') == 'set-version')
+        for channel, label in [('testing', 'testing-20260102T030405'), ('stable', 'v1.4.2')]:
+            with self.subTest(channel=channel), tempfile.TemporaryDirectory() as tmp:
+                rendered = script
+                for key, value in {'steps.set-timestamp.outputs.timestamp': '20260102T030405',
+                                   'github.ref': 'refs/heads/wrynose', 'inputs.channel': channel,
+                                   'inputs.meta_librescoot_branch': '', 'inputs.ota_feed': 'canary'}.items():
+                    rendered = rendered.replace('${{ ' + key + ' }}', value)
+                output = Path(tmp) / 'output'
+                shell(rendered, tmp, GITHUB_REF='refs/heads/wrynose', GITHUB_OUTPUT=str(output), CANARY_STABLE_VERSION='v1.4.2')
+                values = dict(line.split('=', 1) for line in output.read_text().splitlines())
+                self.assertEqual(values, dict(version=label, tag='canary-' + label, channel=channel, prerelease='true'))
+
     def test_change_gate(self):
         steps = workflow('build.yml')['jobs']['prepare']['steps']
         script = next(s['run'] for s in steps if s.get('id') == 'check')

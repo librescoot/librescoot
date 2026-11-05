@@ -31,7 +31,8 @@ class CatalogTests(unittest.TestCase):
     def test_identity_survives_container_change(self):
         header = gzip.compress(tar_bytes({'header-info': json.dumps(dict(
             artifact_provides=dict(artifact_name='release-v1.4.1'),
-            artifact_depends=dict(device_type=['unu-mdb']))).encode()}), mtime=0)
+            artifact_depends=dict(device_type=['unu-mdb']))).encode(),
+            'headers/0000/type-info': b'{"artifact_provides":{"rootfs-image.librescoot-updater-protocol":"2"}}'}), mtime=0)
         payload = tar_bytes({'rootfs.ext4': b'rootfs'})
         root = hashlib.sha256(b'rootfs').hexdigest()
         files = {'version': b'{"version":3}', 'manifest': f'{root}  data/0000/rootfs.ext4\n'.encode(),
@@ -44,6 +45,7 @@ class CatalogTests(unittest.TestCase):
             path.write_bytes(tar_bytes(files))
             b = inspect_artifact(path, 'unu-mdb', 'v1.4.1', 'https://example/image.mender')
             self.assertEqual(a['id'], b['id'])
+            self.assertEqual(a['updater_protocol'], 2)
             self.assertEqual(a['payload_tar_sha256'], b['payload_tar_sha256'])
             self.assertNotEqual(a['full']['sha256'], b['full']['sha256'])
             with self.assertRaises(ValueError):
@@ -78,6 +80,12 @@ class CatalogTests(unittest.TestCase):
             old = inspect_artifact(paths[0], 'unu-mdb', 'v1.4.1', 'https://example/old.mender')
             new = inspect_artifact(paths[1], 'unu-mdb', 'testing-20261105T120000', 'https://example/new.mender')
             self.assertNotEqual(old['id'], new['id'])
+
+    def test_canary_is_never_a_regular_source(self):
+        releases = [dict(tag_name='canary-testing-20261105T120000', prerelease=True, draft=False, published_at='2026-11-05'),
+                    dict(tag_name='testing-20261104T120000', prerelease=True, draft=False, published_at='2026-11-04')]
+        self.assertEqual(cross.select_sources(releases, 'testing', 'new')[0]['tag_name'], 'testing-20261104T120000')
+        self.assertEqual(cross.select_sources(releases, 'testing', 'new', 'canary')[0]['tag_name'], 'testing-20261105T120000')
 
     def test_source_matrix(self):
         def release(tag, pre):

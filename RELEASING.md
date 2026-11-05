@@ -16,6 +16,24 @@ Stable and testing releases also carry board-specific OTA-v2 descriptors and exp
 
 A testing-to-older-stable edge is generated only when the manual testing build sets `allow_testing_return=true`, after confirming persistent-data compatibility with that stable image. A full image does not make an incompatible data downgrade safe. The downloadable index and update-service changes must be rolled out before clients can use v2 edges.
 
+## Isolated v2 canary releases
+
+Manual builds can set `ota_feed=canary`. The rootfs keeps its ordinary version
+label, but the GitHub release tag is `canary-<version>` and always a prerelease.
+Normal channel indexes exclude these releases. The versioned catalogs are
+`/updates/v2/releases.json` and `/updates/v2/canary.json`; only explicitly enrolled
+boards use the canary catalog.
+
+Canary testing uses the usual timestamp label. A manual canary stable build
+requires an unpublished `canary_stable_version=vX.Y.Z`; duplicate version labels
+across different release artifacts are refused. Manual stable builds outside
+canary remain disallowed. Nightly builds are not part of the isolated v2 feed.
+
+Test images need both the capable update-service revision and the build-layer
+capability advertisement. The client refuses targets lacking that advertisement
+rather than installing an updater that would forget the persistent enrollment.
+Both boards must be enrolled separately before testing a joint channel switch.
+
 `nightly` is on its own track. It tracks AUTOREV (HEAD of every service repo), so it's only useful if you trust whatever happens to be on `wrynose` / `main` at build time.
 
 `wrynose` is the current Yocto base and the default branch of this repo. `scarthgap` is the older base, covering anything before 1.2.x. It still exists, but releases are not cut from it.
