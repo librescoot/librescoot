@@ -80,6 +80,7 @@ def main():
     parser.add_argument('--channel', choices=['stable', 'testing', 'nightly'], required=True)
     parser.add_argument('--version', required=True)
     parser.add_argument('--repo', default='librescoot/librescoot')
+    parser.add_argument('--allow-return', action='store_true', help='publish tested testing-to-current-stable rollback edges')
     parser.add_argument('--artifacts', type=Path, default=Path('artifacts'))
     args = parser.parse_args()
     if args.channel == 'nightly':
@@ -116,12 +117,15 @@ def main():
                 assets = [a for a in release['assets'] if a['name'] == filename]
                 if len(assets) != 1:
                     continue  # A partial release is not a source for this board.
+                if not assets[0].get('digest', '').startswith('sha256:'):
+                    print(f'Skipping {filename}: source has no verifiable release digest', file=sys.stderr)
+                    continue
                 old_path = Path(tmp) / filename
                 download(assets[0], old_path)
                 old = inspect_artifact(old_path, variant, tag, assets[0]['browser_download_url'])
                 pairs = [(old, target, old_path, target_path)]
                 # Explicit return to current stable; never mutate the old stable release.
-                if args.channel == 'testing' and not release['prerelease']:
+                if args.allow_return and args.channel == 'testing' and not release['prerelease']:
                     pairs.append((target, old, target_path, old_path))
                 for source, dest, source_path, dest_path in pairs:
                     name = f'librescoot-{variant}-from-{source["id"]}-to-{dest["id"]}.delta'

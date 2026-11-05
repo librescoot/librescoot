@@ -37,6 +37,11 @@ on:
         options:
           - nightly
           - testing
+      allow_testing_return:
+        description: 'Create return deltas to current stable after data-compatibility testing'
+        required: false
+        default: false
+        type: boolean
       meta_librescoot_branch:
         description: 'meta-librescoot branch (default: wrynose)'
         required: false
@@ -334,10 +339,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          args=()
+          if [ '${{ inputs.allow_testing_return }}' = 'true' ]; then
+            args+=(--allow-return)
+          fi
           python3 .github/workflows/scripts/cross-channel-deltas.py \
             --channel '${{ needs.prepare.outputs.channel }}' \
             --version '${{ needs.prepare.outputs.version }}' \
-            --repo '${{ github.repository }}'
+            --repo '${{ github.repository }}' "${args[@]}"
 
       - name: Generate SHA256SUMS
         run: |

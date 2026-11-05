@@ -12,6 +12,10 @@ How a change gets from a green nightly to a tagged stable image.
 
 Both `testing` and `stable` build the same set of SRCREVs (whatever's pinned in `stable.env`). The difference is just the trigger and the version label, plus the pre-release flag on the GitHub Release. Use `testing` to validate a `stable.env` change before tagging, then push the tag.
 
+Stable and testing releases also carry board-specific OTA-v2 descriptors and explicit delta edges. Testing uses the current stable and previous testing images as sources; stable uses the current and previous stable images and the latest testing image. Sources without a published SHA256 are skipped. Each generated edge is reconstructed and checked before publication. Existing single-source delta assets remain available for older clients.
+
+A testing-to-older-stable edge is generated only when the manual testing build sets `allow_testing_return=true`, after confirming persistent-data compatibility with that stable image. A full image does not make an incompatible data downgrade safe. The downloadable index and update-service changes must be rolled out before clients can use v2 edges.
+
 `nightly` is on its own track. It tracks AUTOREV (HEAD of every service repo), so it's only useful if you trust whatever happens to be on `wrynose` / `main` at build time.
 
 `wrynose` is the current Yocto base and the default branch of this repo. `scarthgap` is the older base, covering anything before 1.2.x. It still exists, but releases are not cut from it.
