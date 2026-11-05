@@ -49,6 +49,36 @@ class CatalogTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 inspect_artifact(path, 'unu-dbc', 'v1.4.1', 'https://example/image.mender')
 
+    def test_real_cross_channel_delta_reconstructs(self):
+        import shutil
+        if not shutil.which('xdelta3'):
+            self.skipTest('xdelta3 not installed')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = []
+            for version, data in [('v1.4.1', b'a' * 8192), ('testing-20261105T120000', b'a' * 4096 + b'b' * 4096)]:
+                checksum = hashlib.sha256(data).hexdigest()
+                header = gzip.compress(tar_bytes({
+                    'header-info': json.dumps(dict(artifact_provides=dict(artifact_name='release-' + version),
+                        artifact_depends=dict(device_type=['unu-mdb']))).encode(),
+                    'headers/0000/type-info': json.dumps(dict(artifact_provides={'rootfs-image.checksum': checksum})).encode(),
+                }), mtime=0)
+                files = {'version': b'{"version":3}', 'manifest': f'{checksum}  data/0000/rootfs.ext4\n'.encode(),
+                         'manifest.sig': b'test signature', 'header.tar.gz': header,
+                         'data/0000.tar.gz': gzip.compress(tar_bytes({'rootfs.ext4': data}), mtime=0)}
+                path = root / (version + '.mender')
+                path.write_bytes(tar_bytes(files))
+                paths.append(path)
+            spec = importlib.util.spec_from_file_location('delta', ROOT / 'mender-delta-create.py')
+            creator = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(creator)
+            delta = root / 'edge.delta'
+            creator.create_delta_patch(str(paths[0]), str(paths[1]), str(delta))
+            cross.verify_patch(paths[0], paths[1], delta)
+            old = inspect_artifact(paths[0], 'unu-mdb', 'v1.4.1', 'https://example/old.mender')
+            new = inspect_artifact(paths[1], 'unu-mdb', 'testing-20261105T120000', 'https://example/new.mender')
+            self.assertNotEqual(old['id'], new['id'])
+
     def test_source_matrix(self):
         def release(tag, pre):
             return dict(tag_name=tag, prerelease=pre, draft=False, published_at=tag)
