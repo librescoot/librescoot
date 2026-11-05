@@ -330,6 +330,15 @@ jobs:
 
           echo "Delta patch creation complete!"
 
+      - name: Create explicit cross-channel deltas
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 .github/workflows/scripts/cross-channel-deltas.py \
+            --channel '${{ needs.prepare.outputs.channel }}' \
+            --version '${{ needs.prepare.outputs.version }}' \
+            --repo '${{ github.repository }}'
+
       - name: Generate SHA256SUMS
         run: |
           set -e
