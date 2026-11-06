@@ -204,8 +204,8 @@ jobs:
   create-release:
     name: Create Release
     needs: [prepare, build]
-    # The experimental branch may only publish a custom nightly, never stable/testing.
-    if: ${{ needs.prepare.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/wrynose' || (github.ref == 'refs/heads/feat/hdiffpatch' && inputs.channel == 'nightly' && inputs.meta_librescoot_branch == 'feat/hdiffpatch'))) || startsWith(github.ref, 'refs/tags/v')) }}
+    # Only create releases for scheduled builds, manual triggers on the default branch, or tag pushes.
+    if: ${{ needs.prepare.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/wrynose') || startsWith(github.ref, 'refs/tags/v')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -234,7 +234,7 @@ jobs:
           fi
 
       - name: Install HDiffPatch encoder
-        if: needs.prepare.outputs.channel == 'nightly'
+        if: startsWith(needs.prepare.outputs.version, 'nightly-')
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --location --retry 3 \
@@ -337,8 +337,8 @@ jobs:
             # Create the delta patch
             python3 mender-delta-create.py "$PREV_MENDER_FILE" "$NEW_MENDER_FILE" "$OUTPUT_DELTA"
 
-            if [ "${{ needs.prepare.outputs.channel }}" = nightly ]; then
-              OUTPUT_HDIFF="artifacts/librescoot-${VARIANT_ID}-${VERSION}.hdiff.delta"
+            if [[ "$VERSION" == nightly-* ]]; then
+              OUTPUT_HDIFF="artifacts/librescoot-${VARIANT_ID}-${VERSION}.hdelta"
               python3 mender-delta-create.py "$PREV_MENDER_FILE" "$NEW_MENDER_FILE" "$OUTPUT_HDIFF" --hdiffpatch
               echo "  HDiffPatch delta created: $OUTPUT_HDIFF"
             fi

@@ -215,7 +215,7 @@ def create_delta_patch(old_mender, new_mender, output_delta, algorithm='xdelta3'
 # --- (main function unchanged) ---
 def main():
     if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] != '--hdiffpatch'):
-        print(f"Usage: python3 {sys.argv[0]} <old.mender> <new.mender> <output.delta> [--hdiffpatch]")
+        print(f"Usage: python3 {sys.argv[0]} <old.mender> <new.mender> <output.delta|output.hdelta> [--hdiffpatch]")
         sys.exit(1)
     algorithm = 'hdiffpatch' if len(sys.argv) == 5 else 'xdelta3'
     executable = 'hdiffz' if algorithm == 'hdiffpatch' else 'xdelta3'

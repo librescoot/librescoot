@@ -65,23 +65,12 @@ creating a release. Decompress a document with `gzip -dc <file>.spdx.json.gz`.
 
 ## Experimental HDiffPatch nightly deltas
 
-Nightly releases additionally contain `.hdiff.delta` assets, generated with
+Normal Nightly releases additionally contain `.hdelta` assets, generated with
 HDiffPatch 5.1.3 and identified inside their metadata as `hdiffpatch`. The
 ordinary `.delta` files remain present for older clients. A client with the
-experimental decoder chooses the smaller supported delta per chain step; an old
-client continues to select the ordinary asset. Stable and Testing do not emit
-experimental assets.
-
-To test the feature branch without changing the standard nightly channel:
-
-```sh
-gh workflow run build.yml --repo librescoot/librescoot --ref feat/hdiffpatch \
-  -f channel=nightly -f meta_librescoot_branch=feat/hdiffpatch
-```
-
-This creates a `custom-nightly-*` prerelease, not a normal OTA-channel release.
-The matching meta-layer branch packages `hpatchz` and selects the experimental
-update-service branch. No scooter is changed by this build.
+HDiffPatch decoder chooses the smaller supported delta per chain step; an old
+client continues to select the ordinary asset. Stable, Testing, and custom
+nightlies do not emit `.hdelta` assets.
 
 ## Signed artifact delta compatibility
 
