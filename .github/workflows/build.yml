@@ -234,7 +234,7 @@ jobs:
           fi
 
       - name: Install HDiffPatch encoder
-        if: startsWith(needs.prepare.outputs.version, 'nightly-')
+        if: startsWith(needs.prepare.outputs.version, 'nightly-') || startsWith(needs.prepare.outputs.version, 'testing-')
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --location --retry 3 \
@@ -337,7 +337,7 @@ jobs:
             # Create the delta patch
             python3 mender-delta-create.py "$PREV_MENDER_FILE" "$NEW_MENDER_FILE" "$OUTPUT_DELTA"
 
-            if [[ "$VERSION" == nightly-* ]]; then
+            if [[ "$VERSION" == nightly-* || "$VERSION" == testing-* ]]; then
               OUTPUT_HDIFF="artifacts/librescoot-${VARIANT_ID}-${VERSION}.hdelta"
               python3 mender-delta-create.py "$PREV_MENDER_FILE" "$NEW_MENDER_FILE" "$OUTPUT_HDIFF" --hdiffpatch
               echo "  HDiffPatch delta created: $OUTPUT_HDIFF"

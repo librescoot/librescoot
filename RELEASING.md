@@ -63,13 +63,13 @@ nightly, testing and stable releases also publish it as a release asset covered
 by `SHA256SUMS`. Minimal builds retain it in their Actions artifacts without
 creating a release. Decompress a document with `gzip -dc <file>.spdx.json.gz`.
 
-## Experimental HDiffPatch nightly deltas
+## HDiffPatch Nightly and Testing deltas
 
-Normal Nightly releases additionally contain `.hdelta` assets, generated with
+Normal Nightly and Testing releases additionally contain `.hdelta` assets, generated with
 HDiffPatch 5.1.3 and identified inside their metadata as `hdiffpatch`. The
 ordinary `.delta` files remain present for older clients. A client with the
 HDiffPatch decoder chooses the smaller supported delta per chain step; an old
-client continues to select the ordinary asset. Stable, Testing, and custom
+client continues to select the ordinary asset. Stable releases and custom
 nightlies do not emit `.hdelta` assets.
 
 ## Signed artifact delta compatibility
