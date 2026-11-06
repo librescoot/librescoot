@@ -1,0 +1,10 @@
+{
+  "artifacts": [],
+  "deltas": [],
+  "revision": "bbc3b3c40bffd2ad296415cfbdfa5d3e106861ab752a62411f9c78ac39dd4086",
+  "schema_version": 2,
+  "targets": {
+    "stable": {},
+    "testing": {}
+  }
+}
