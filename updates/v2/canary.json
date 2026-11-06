@@ -1,10 +1,163 @@
 {
-  "artifacts": [],
-  "deltas": [],
-  "revision": "bbc3b3c40bffd2ad296415cfbdfa5d3e106861ab752a62411f9c78ac39dd4086",
+  "artifacts": [
+    {
+      "artifact_name": "release-testing-20261106T070305",
+      "device_types": [
+        "unu-dbc"
+      ],
+      "full": {
+        "sha256": "cdb0026fe54e3d995355695b6ab74454aeaa9014ca2e3cb5f2f18ea6262e63c6",
+        "size": 221204992,
+        "url": "https://github.com/librescoot/librescoot/releases/download/canary-testing-20261106T070305/librescoot-unu-dbc-testing-20261106T070305.mender"
+      },
+      "header_sha256": "145ecb9cbb86107baedcb21929f0956e43abcd7b076a6622f1ee4dc98feea7b8",
+      "id": "40da3686a008db75cc8e9e1aa16fb74224c1ee6d09cf6d0478684ce736a2c1bc",
+      "manifest_sha256": "e9072d72baae73e33ceb15e5d517fd034698b4ee464f7d93663cc9b829a3278f",
+      "payload_tar_sha256": "c28efeb480a1c6365da55d3efa5535348ec4a3546bff8695231970ae775d02c9",
+      "payload_tar_size": 1073743360,
+      "rootfs_sha256": "e838f46a600f0e416ddd18ec4383d05994f9f5cd396043fdef527399294f7363",
+      "updater_protocol": 2,
+      "variant_id": "unu-dbc",
+      "version": "testing-20261106T070305"
+    },
+    {
+      "artifact_name": "release-testing-20261106T070305",
+      "device_types": [
+        "unu-mdb"
+      ],
+      "full": {
+        "sha256": "b16b630a06e04b41e6c3a9b1ad87c0f6e5785e9090b7dca65ce48c73f5b989e3",
+        "size": 181751296,
+        "url": "https://github.com/librescoot/librescoot/releases/download/canary-testing-20261106T070305/librescoot-unu-mdb-testing-20261106T070305.mender"
+      },
+      "header_sha256": "66ec5ea7d39183c5f002c42542614d916007ee781c173ad231a5584be4abbe92",
+      "id": "8ad16f92054d5ad49f5823da1c42d9f05a83bacd420f835e6ca129e67e331fce",
+      "manifest_sha256": "4127a2ed28c79ddaa4f882a11f59c2505b2e03fe488b37db4234a59cfc9283b7",
+      "payload_tar_sha256": "d376fb2938a27fc80db9e32f0be42e437d70162418dd6af2702c414005ab8985",
+      "payload_tar_size": 536872448,
+      "rootfs_sha256": "70bb8ae872d66a8f50550daef26dad458fbc4223e0504be26754b69f8b88d8b9",
+      "updater_protocol": 2,
+      "variant_id": "unu-mdb",
+      "version": "testing-20261106T070305"
+    },
+    {
+      "artifact_name": "release-v1.4.1",
+      "device_types": [
+        "unu-mdb"
+      ],
+      "full": {
+        "sha256": "34accda90c40fc3bdf6e93f0617d33d52fab42d47d85db1e6ebfba638994d343",
+        "size": 181705216,
+        "url": "https://github.com/librescoot/librescoot/releases/download/v1.4.1/librescoot-unu-mdb-v1.4.1.mender"
+      },
+      "header_sha256": "f68c4f17cb943aad8fcd4869007049fe223baf5f5b2b7a1eeeba20ef489f3187",
+      "id": "c368d2f348a681e173ea3e063e28574944384eb01c7b2af30e314bfaecd05f42",
+      "manifest_sha256": "64767c50c06318b48f8b12d2a6ab20648103e63b8c8fab24714452a3442a487a",
+      "payload_tar_sha256": "8502f6aeed57555f9d91aec385f08ec5ef8245838619872a82af1e07f55a5e2c",
+      "payload_tar_size": 536872448,
+      "rootfs_sha256": "68c10253a1d936bcc4b9e962e9fbcffbfdf0bdea5ca4482aac889e0c5f2425b6",
+      "updater_protocol": 0,
+      "variant_id": "unu-mdb",
+      "version": "v1.4.1"
+    },
+    {
+      "artifact_name": "release-testing-20261105T184531",
+      "device_types": [
+        "unu-mdb"
+      ],
+      "full": {
+        "sha256": "31020028455385536763a8b6378740a632dede7f0869abf72ecd93ac06fc2660",
+        "size": 181703168,
+        "url": "https://github.com/librescoot/librescoot/releases/download/testing-20261105T184531/librescoot-unu-mdb-testing-20261105T184531.mender"
+      },
+      "header_sha256": "34fece4f62a18e5602096a309357c2cdedde4db0fd30c25d301f56bb0d202997",
+      "id": "d94558ad4bb774d91c72e02a6c7db612137246a14566a36d9d805aff67c2fee6",
+      "manifest_sha256": "9c8e2cb91916041205e5c7b5f9b2dd1c2b4fb075a922882e15f22723e82c01aa",
+      "payload_tar_sha256": "74e5cdf6d894bd05b146eba5976c86bf6919c8f3fcaa74eec486bfb606d9b666",
+      "payload_tar_size": 536872448,
+      "rootfs_sha256": "18eb44dd2ba6df5261c0cd74295fd42f30c6975e9c27d382716f75ec4e5c7ffe",
+      "updater_protocol": 0,
+      "variant_id": "unu-mdb",
+      "version": "testing-20261105T184531"
+    },
+    {
+      "artifact_name": "release-testing-20261105T184531",
+      "device_types": [
+        "unu-dbc"
+      ],
+      "full": {
+        "sha256": "7ed9e2c6d5763ab8e884289294546dadbe5a3d11583b1bdde8b55fc3e833c0e9",
+        "size": 221101568,
+        "url": "https://github.com/librescoot/librescoot/releases/download/testing-20261105T184531/librescoot-unu-dbc-testing-20261105T184531.mender"
+      },
+      "header_sha256": "13a5f14f45e99e2a3b9a40d3acfcfea8181f324f3884a92bc0c97d03782b8216",
+      "id": "ea73b257014876b0ad100ddf61c01be8c6767f7a8a8317b5ba2c56bde91a1f99",
+      "manifest_sha256": "c14bd2fe72b9c2b7b7ead61adec341b72ed68f303ccad640ebace310a56908c5",
+      "payload_tar_sha256": "5b1c945b46ba00cae904367bf28c11f21c4bbab9e2eaa83a125db953ac56bf2e",
+      "payload_tar_size": 1073743360,
+      "rootfs_sha256": "94650941f161a6d9970941e83dddd6e6996ede29c5e715a17579bdf352c64006",
+      "updater_protocol": 0,
+      "variant_id": "unu-dbc",
+      "version": "testing-20261105T184531"
+    },
+    {
+      "artifact_name": "release-v1.4.1",
+      "device_types": [
+        "unu-dbc"
+      ],
+      "full": {
+        "sha256": "97ceb2bb59357a708b557e41b54f8bc9c7323d06a541ef928aa2665e14ad6d0c",
+        "size": 221014016,
+        "url": "https://github.com/librescoot/librescoot/releases/download/v1.4.1/librescoot-unu-dbc-v1.4.1.mender"
+      },
+      "header_sha256": "6848699c6f4c9be034fed2fb2eafcfb7c3b35c567a6620928561decdae047db1",
+      "id": "f1a16acc374b69c83097f2734c325247fac125bcab7945df18ea0ef070379749",
+      "manifest_sha256": "d1748b0d47c986a8fd71ac4b7946630e608dcbd5bd2ed717781c8985e41ff92d",
+      "payload_tar_sha256": "8085b1762303b1b4da31cabb0c614fecb9893fd1d31920d6d79c3b7f3f55f986",
+      "payload_tar_size": 1073743360,
+      "rootfs_sha256": "846cb039733560d1ef44f4effb0cac6e60569b532366edc72dc8f64a0498c974",
+      "updater_protocol": 0,
+      "variant_id": "unu-dbc",
+      "version": "v1.4.1"
+    }
+  ],
+  "deltas": [
+    {
+      "sha256": "a76446b68e9d285083a270cbc21664734206d8f31d09f68b41e9f77e581880ac",
+      "size": 4431773,
+      "source": "c368d2f348a681e173ea3e063e28574944384eb01c7b2af30e314bfaecd05f42",
+      "target": "8ad16f92054d5ad49f5823da1c42d9f05a83bacd420f835e6ca129e67e331fce",
+      "url": "https://github.com/librescoot/librescoot/releases/download/canary-testing-20261106T070305/librescoot-unu-mdb-from-c368d2f348a681e173ea3e063e28574944384eb01c7b2af30e314bfaecd05f42-to-8ad16f92054d5ad49f5823da1c42d9f05a83bacd420f835e6ca129e67e331fce.delta"
+    },
+    {
+      "sha256": "a4ce17110ee0da1aba20b19c4ccd05ef0bc2cfe9d698506d9b6873b4d18c3c3b",
+      "size": 1541065,
+      "source": "d94558ad4bb774d91c72e02a6c7db612137246a14566a36d9d805aff67c2fee6",
+      "target": "8ad16f92054d5ad49f5823da1c42d9f05a83bacd420f835e6ca129e67e331fce",
+      "url": "https://github.com/librescoot/librescoot/releases/download/canary-testing-20261106T070305/librescoot-unu-mdb-from-d94558ad4bb774d91c72e02a6c7db612137246a14566a36d9d805aff67c2fee6-to-8ad16f92054d5ad49f5823da1c42d9f05a83bacd420f835e6ca129e67e331fce.delta"
+    },
+    {
+      "sha256": "56fe06f27fc2bdb479757587f6b6652ace4b9905d58a32ad500b6a9ba1f2386c",
+      "size": 2787653,
+      "source": "ea73b257014876b0ad100ddf61c01be8c6767f7a8a8317b5ba2c56bde91a1f99",
+      "target": "40da3686a008db75cc8e9e1aa16fb74224c1ee6d09cf6d0478684ce736a2c1bc",
+      "url": "https://github.com/librescoot/librescoot/releases/download/canary-testing-20261106T070305/librescoot-unu-dbc-from-ea73b257014876b0ad100ddf61c01be8c6767f7a8a8317b5ba2c56bde91a1f99-to-40da3686a008db75cc8e9e1aa16fb74224c1ee6d09cf6d0478684ce736a2c1bc.delta"
+    },
+    {
+      "sha256": "4ff375182c9d3a469a9ded850c1e566bd5fa287918a42d59117f9b6089897c22",
+      "size": 3183828,
+      "source": "f1a16acc374b69c83097f2734c325247fac125bcab7945df18ea0ef070379749",
+      "target": "40da3686a008db75cc8e9e1aa16fb74224c1ee6d09cf6d0478684ce736a2c1bc",
+      "url": "https://github.com/librescoot/librescoot/releases/download/canary-testing-20261106T070305/librescoot-unu-dbc-from-f1a16acc374b69c83097f2734c325247fac125bcab7945df18ea0ef070379749-to-40da3686a008db75cc8e9e1aa16fb74224c1ee6d09cf6d0478684ce736a2c1bc.delta"
+    }
+  ],
+  "revision": "8a01823bdf5e961232372605f8de58d7f6d6624bed93a0947cd5de2a04d19f04",
   "schema_version": 2,
   "targets": {
     "stable": {},
-    "testing": {}
+    "testing": {
+      "unu-dbc": "40da3686a008db75cc8e9e1aa16fb74224c1ee6d09cf6d0478684ce736a2c1bc",
+      "unu-mdb": "8ad16f92054d5ad49f5823da1c42d9f05a83bacd420f835e6ca129e67e331fce"
+    }
   }
 }
