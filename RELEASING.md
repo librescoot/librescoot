@@ -29,6 +29,14 @@ requires an unpublished `canary_stable_version=vX.Y.Z`; duplicate version labels
 across different release artifacts are refused. Manual stable builds outside
 canary remain disallowed. Nightly builds are not part of the isolated v2 feed.
 
+Canary builds layer `canary.env` over `stable.env`; only the canary overlay pins
+the experimental services and layer. Normal stable/testing pins remain unchanged.
+The feature branch can publish canary builds without merging into wrynose.
+Canary releases refresh a separate `canary-feed` data branch in this repository,
+served at `https://raw.githubusercontent.com/librescoot/librescoot/canary-feed/updates/v2/canary.json`.
+This isolated hosting does not deploy the normal downloads site. Enroll test
+boards with that explicit URL until the versioned endpoint is deployed there.
+
 Test images need both the capable update-service revision and the build-layer
 capability advertisement. The client refuses targets lacking that advertisement
 rather than installing an updater that would forget the persistent enrollment.

@@ -241,13 +241,14 @@ jobs:
       variant_id: ${{ matrix.variant_id }}
       version: ${{ needs.prepare.outputs.version }}
       channel: ${{ needs.prepare.outputs.channel }}
+      pinset: ${{ inputs.ota_feed == 'canary' && 'canary' || '' }}
       meta_librescoot_branch: ${{ inputs.meta_librescoot_branch || '' }}
 
   create-release:
     name: Create Release
     needs: [prepare, build]
     # Only create releases for scheduled builds, manual triggers on main branch, or tag pushes.
-    if: ${{ needs.prepare.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/wrynose') || startsWith(github.ref, 'refs/tags/v')) }}
+    if: ${{ needs.prepare.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/wrynose' || (inputs.ota_feed == 'canary' && github.ref == 'refs/heads/feat/cross-channel-ota'))) || startsWith(github.ref, 'refs/tags/v')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -447,8 +448,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Checkout isolated catalog tooling
+        if: inputs.ota_feed == 'canary'
+        uses: actions/checkout@v6
+        with:
+          repository: librescoot/downloads.librescoot.org
+          ref: feat/cross-channel-ota
+          path: catalog-tools
+
+      - name: Publish isolated canary catalog
+        if: inputs.ota_feed == 'canary'
+        working-directory: catalog-tools
+        run: bash .github/publish-canary-feed.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Generate app token for site rebuilds
-        if: steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
+        if: inputs.ota_feed != 'canary' && (steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch')
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
@@ -458,7 +474,7 @@ jobs:
           repositories: downloads.librescoot.org,librescoot.github.io
 
       - name: Trigger downloads site rebuild
-        if: steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
+        if: inputs.ota_feed != 'canary' && (steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch')
         uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ steps.app-token.outputs.token }}
@@ -466,7 +482,7 @@ jobs:
           event-type: releases-changed
 
       - name: Trigger main site rebuild
-        if: steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
+        if: inputs.ota_feed != 'canary' && (steps.changelog.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch')
         uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ steps.app-token.outputs.token }}

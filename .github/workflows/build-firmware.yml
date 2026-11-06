@@ -18,6 +18,9 @@ on:
       channel:
         required: true
         type: string
+      pinset:
+        default: ''
+        type: string
       meta_librescoot_branch:
         default: ''
         type: string
@@ -54,6 +57,7 @@ jobs:
           sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
 
           # Use the determined version
+          BUILD_PINSET="${{ inputs.pinset }}" \
           LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
           BUILD_CHANNEL="${{ inputs.channel }}" \
           LIBRESCOOT_VERSION="${{ inputs.version }}" \
@@ -98,6 +102,7 @@ jobs:
           sed -i 's/docker run -i/docker run -i -e EULA=1/' build.sh
 
           set +e
+          BUILD_PINSET="${{ inputs.pinset }}" \
           LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
           BUILD_CHANNEL="${{ inputs.channel }}" \
           LIBRESCOOT_VERSION="${{ inputs.version }}" \

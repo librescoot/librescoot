@@ -98,6 +98,20 @@ class WorkflowTests(unittest.TestCase):
                 values = dict(line.split('=', 1) for line in output.read_text().splitlines())
                 self.assertEqual(values, dict(version=label, tag='canary-' + label, channel=channel, prerelease='true'))
 
+    def test_canary_pins_and_branch_publication_are_isolated(self):
+        release = workflow('build.yml')
+        self.assertIn("inputs.ota_feed == 'canary'", release['jobs']['build']['with']['pinset'])
+        condition = release['jobs']['create-release']['if']
+        self.assertIn("inputs.ota_feed == 'canary' && github.ref == 'refs/heads/feat/cross-channel-ota'", condition)
+        steps = release['jobs']['create-release']['steps']
+        for name in ['Trigger downloads site rebuild', 'Trigger main site rebuild']:
+            self.assertIn("inputs.ota_feed != 'canary'", next(s for s in steps if s['name'] == name)['if'])
+        self.assertIn('BUILD_PINSET', (ROOT / 'build.sh').read_text())
+        self.assertIn('canary.env', (ROOT / 'docker/Dockerfile').read_text())
+        self.assertIn('LIBRESCOOT_GIT_BRANCH:pn-', (ROOT / 'docker/entrypoint.sh').read_text())
+        for service in ['update_service', 'lsc', 'scootui_qt']:
+            self.assertIn('SRCREV_' + service + '=', (ROOT / 'canary.env').read_text())
+
     def test_change_gate(self):
         steps = workflow('build.yml')['jobs']['prepare']['steps']
         script = next(s['run'] for s in steps if s.get('id') == 'check')

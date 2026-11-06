@@ -41,6 +41,21 @@ else
     echo "Warning: Environment file ${ENV_FILE} not found."
 fi
 
+if [ "${BUILD_PINSET:-}" = "canary" ]; then
+    if [ "$BUILD_CHANNEL" != "testing" ] && [ "$BUILD_CHANNEL" != "stable" ]; then
+        echo "Canary pins require stable or testing" >&2
+        exit 1
+    fi
+    if [ -f /yocto/canary.env ]; then
+        source /yocto/canary.env
+    elif [ -f /opt/yocto-env/canary.env ]; then
+        source /opt/yocto-env/canary.env
+    else
+        echo "Missing canary.env overlay" >&2
+        exit 1
+    fi
+fi
+
 # Restore env overrides that were set before sourcing
 for var in "${!_saved_overrides[@]}"; do
     echo "Restoring override: ${var}=${_saved_overrides[$var]}"
@@ -402,6 +417,13 @@ if [ -n "$DISTRO_CODENAME" ]; then
     echo "Overriding DISTRO_CODENAME with ${DISTRO_CODENAME}"
     echo "DISTRO_CODENAME = \"${DISTRO_CODENAME}\"" >> /yocto/build/conf/local.conf
 fi
+
+# Pinned canary commits may live off main; keep fetcher branch validation on.
+for var in $(compgen -v | grep '^SRCBRANCH_'); do
+    pkg_name="${var#SRCBRANCH_}"
+    pkg_name="${pkg_name//_/-}"
+    echo "LIBRESCOOT_GIT_BRANCH:pn-${pkg_name} = \"${!var}\"" >> /yocto/build/conf/local.conf
+done
 
 # Apply SCOOTUI_VERSION_UPDATE if set (for scootui builds)
 if [ -n "$SCOOTUI_VERSION_UPDATE" ]; then
