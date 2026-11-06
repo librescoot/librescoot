@@ -39,12 +39,38 @@ def is_gzipped(filepath):
         return True
     except: return False
 
+# Cap encoder memory while matching across a complete 512 MiB MDB image.
+# The decoder does not need to allocate this whole source window.
+SOURCE_WINDOW_BYTES = 512 * 1024 * 1024
+
+
+def compressed_size(filepath):
+    import zlib
+    compressor = zlib.compressobj(9, zlib.DEFLATED, 31)
+    size = 0
+    with open(filepath, 'rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            size += len(compressor.compress(block))
+    return size + len(compressor.flush())
+
+
 def create_xdelta_patch(old_file, new_file, patch_file):
-    cmd = ['xdelta3', '-e', '-9', '-S', 'none', '-s', old_file, new_file, patch_file]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise Exception(f"xdelta3 failed: {result.stderr}")
-    return patch_file
+    base = ['xdelta3', '-e', '-9', '-S', 'none']
+    candidates = [(patch_file, []), (patch_file + '.large-window', ['-B', str(SOURCE_WINDOW_BYTES)])]
+    try:
+        for candidate, options in candidates:
+            cmd = base + options + ['-s', old_file, new_file, candidate]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                raise RuntimeError(f"xdelta3 failed: {result.stderr}")
+        sizes = [compressed_size(candidate) for candidate, _ in candidates]
+        print(f"  Compressed patch candidates: default={sizes[0]}, large-window={sizes[1]} bytes")
+        if sizes[1] < sizes[0]:
+            os.replace(candidates[1][0], patch_file)
+        return patch_file
+    finally:
+        if os.path.exists(candidates[1][0]):
+            os.remove(candidates[1][0])
 
 def process_file_for_delta(filepath, work_dir, file_id):
     filename = os.path.basename(filepath)

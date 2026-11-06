@@ -72,6 +72,13 @@ artifact without changing the signed manifest or losing its signature.
 A signed target needs an update-service repacker that retains `manifest.sig`
 immediately after `manifest`; older repackers omit it.
 
+For each changed payload, the generator builds xdelta patches with the default
+source window and a 512 MiB source window, then packages the one with the smaller
+compressed size. This retains compact patches for small changes while finding
+moved data in 512 MiB root filesystems. The large-window encoder can use roughly
+1.6 GiB of RAM; decoding uses the existing xdelta3 interface and does not require
+an equally large allocation. Release jobs process boards sequentially.
+
 Offline generator regressions run with the workflow tests:
 
 ```sh
