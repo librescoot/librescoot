@@ -121,7 +121,9 @@ def get_payload_checksum(mender_dir):
     return None
 
 
-def create_delta_patch(old_mender, new_mender, output_delta):
+def create_delta_patch(old_mender, new_mender, output_delta, algorithm='xdelta3'):
+    if algorithm not in ('xdelta3', 'hdiffpatch'):
+        raise ValueError(f'unsupported delta algorithm: {algorithm}')
     with tempfile.TemporaryDirectory() as temp_dir:
         old_dir, new_dir, delta_dir, work_dir = [os.path.join(temp_dir, d) for d in ['old', 'new', 'delta', 'work']]
         for d in [old_dir, new_dir, delta_dir, work_dir]: os.makedirs(d)
@@ -166,9 +168,15 @@ def create_delta_patch(old_mender, new_mender, output_delta):
                 old_processed, old_meta = process_file_for_delta(old_file_path, work_dir, f"old_{rel_path.replace('/', '_')}")
                 new_processed, new_meta = process_file_for_delta(new_file_path, work_dir, f"new_{rel_path.replace('/', '_')}")
                 
-                patch_name = rel_path.replace('/', '_').replace('\\', '_') + '.xdelta'
+                patch_name = rel_path.replace('/', '_').replace('\\', '_') + ('.hdiff' if algorithm == 'hdiffpatch' else '.xdelta')
                 patch_path = os.path.join(patches_dir, patch_name)
-                create_xdelta_patch(old_processed, new_processed, patch_path)
+                if algorithm == 'hdiffpatch':
+                    cmd = ['hdiffz', '-m-4', '-p-2', '-c-zstd-20', old_processed, new_processed, patch_path]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        raise RuntimeError(f'hdiffz failed: {result.stderr}')
+                else:
+                    create_xdelta_patch(old_processed, new_processed, patch_path)
                 
                 metadata['changes'][rel_path] = {
                     'type': 'modified',
@@ -176,6 +184,8 @@ def create_delta_patch(old_mender, new_mender, output_delta):
                     'old_meta': old_meta,
                     'new_meta': new_meta
                 }
+                if algorithm == 'hdiffpatch':
+                    metadata['changes'][rel_path]['algorithm'] = algorithm
             elif rel_path not in old_files:
                 print(f"  New: {rel_path}")
                 dest_path = os.path.join(new_files_dir, rel_path)
@@ -204,14 +214,16 @@ def create_delta_patch(old_mender, new_mender, output_delta):
 
 # --- (main function unchanged) ---
 def main():
-    if len(sys.argv) != 4:
-        print(f"Usage: python3 {sys.argv[0]} <old.mender> <new.mender> <output.delta>")
+    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] != '--hdiffpatch'):
+        print(f"Usage: python3 {sys.argv[0]} <old.mender> <new.mender> <output.delta> [--hdiffpatch]")
         sys.exit(1)
-    if shutil.which('xdelta3') is None:
-        print("Error: xdelta3 is not installed or not in PATH.")
+    algorithm = 'hdiffpatch' if len(sys.argv) == 5 else 'xdelta3'
+    executable = 'hdiffz' if algorithm == 'hdiffpatch' else 'xdelta3'
+    if shutil.which(executable) is None:
+        print(f"Error: {executable} is not installed or not in PATH.")
         sys.exit(1)
     try:
-        create_delta_patch(sys.argv[1], sys.argv[2], sys.argv[3])
+        create_delta_patch(sys.argv[1], sys.argv[2], sys.argv[3], algorithm)
     except Exception as e:
         print(f"\nError: {e}")
         sys.exit(1)
