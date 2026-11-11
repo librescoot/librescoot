@@ -139,7 +139,25 @@ gh workflow run build.yml --repo librescoot/librescoot --ref wrynose -f channel=
 gh run list --repo librescoot/librescoot --workflow build.yml --limit 1
 ```
 
-A `testing` build produces `testing-<TIMESTAMP>` artifacts using the pins in the selected commit. Record the workflow run, commit and inputs. Channel-specific configuration and unpinned sources can still differ from the eventual stable build.
+A `testing` build produces `testing-<TIMESTAMP>` artifacts using the pins in the selected commit. Record the workflow run, commit and inputs. Channel-specific configuration and unpinned sources can still differ from the eventual stable build. Monitor the run until both image builds and the release job finish; a successful image build alone does not mean a release was created.
+
+Check the published release and downloaded assets before testing. Downloading all assets needs several gigabytes of free space:
+
+```bash
+TAG=testing-YYYYMMDDThhmmss
+mkdir -p "release-check/$TAG"
+gh release view "$TAG" --repo librescoot/librescoot
+gh release download "$TAG" --repo librescoot/librescoot --dir "release-check/$TAG"
+cd "release-check/$TAG"
+sha256sum -c SHA256SUMS
+for delta in *.delta *.hdelta; do
+    [ -f "$delta" ] || continue
+    printf '\n%s\n' "$delta"
+    tar -xOzf "$delta" ./metadata.json | jq '{old_artifact_name, new_artifact_name, changes}'
+done
+```
+
+Confirm the MDB and DBC images and their expected delta formats exist, and that each delta names the intended base and target. The first release in a channel can have no delta. A checksum match proves the downloaded bytes match the release manifest, not that installation succeeds. Record the run URL, results and any exceptions.
 
 ### 3. Soak on a deployed scooter
 
@@ -149,7 +167,7 @@ ssh deep-blue 'lsc ota check'
 ssh deep-blue 'lsc ota status'
 ```
 
-Wait for both partitions to install, reboot, and come back `idle` on the new `testing-<TIMESTAMP>`. Smoke-test what changed, plus these release-wide checks:
+Wait for both boards to install, reboot, and come back `idle` on the new `testing-<TIMESTAMP>`. Record the test target, starting versions, installed versions, update path and results. Test affected features and failure/recovery paths; agree on an observation period and any exceptions. Use vehicle controls only with an explicitly authorized and safe test setup. Smoke-test what changed, plus these release-wide checks:
 
 - **MDB time synchronization:** `chronyc tracking` on the MDB must report a normal leap status and a current reference time from an external NTP source.
 - **MDB-to-DBC time synchronization:** after the DBC boots, `chronyc sources` on the DBC must select the MDB and the DBC clock must converge to the MDB clock. Verify the active USB and PPP transports and their current addresses on the target.
