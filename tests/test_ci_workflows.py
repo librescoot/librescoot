@@ -100,46 +100,26 @@ class WorkflowTests(unittest.TestCase):
                       tmp, RESPONSE=response, GITHUB_OUTPUT=str(output))
                 self.assertEqual(output.read_text().strip(), f'has_changes={expected}')
 
-    def test_xdelta_install_is_idempotent_and_bounded(self):
-        steps = workflow('build.yml')['jobs']['create-release']['steps']
-        script = next(s['run'] for s in steps if s['name'] == 'Install xdelta3')
-        prelude = '''
-command() {
-    if [ "$1" = -v ] && [ "$2" = xdelta3 ]; then
-        return "$XDELTA_STATUS"
-    fi
-    builtin command "$@"
-}
-sudo() {
-    printf '%s\\n' "$*" >> "$CALLS"
-    case "$*" in
-        *" install "*) return "${INSTALL_STATUS:-0}" ;;
-    esac
-}
-'''
-        with tempfile.TemporaryDirectory() as tmp:
-            calls = Path(tmp) / 'calls'
-            shell(prelude + script, tmp, XDELTA_STATUS='0', CALLS=str(calls))
-            self.assertFalse(calls.exists())
-
-        expected_calls = [
-            'apt-get update',
-            'env DEBIAN_FRONTEND=noninteractive apt-get -o '
-            'DPkg::Lock::Timeout=300 install -y xdelta3',
-        ]
-        with tempfile.TemporaryDirectory() as tmp:
-            calls = Path(tmp) / 'calls'
-            shell(prelude + script, tmp, XDELTA_STATUS='1', CALLS=str(calls))
-            self.assertEqual(calls.read_text().splitlines(), expected_calls)
-
-        with tempfile.TemporaryDirectory() as tmp:
-            calls = Path(tmp) / 'calls'
-            result = subprocess.run(
-                ['bash', '-e', '-o', 'pipefail', '-c', prelude + script], cwd=tmp,
-                env={**os.environ, 'XDELTA_STATUS': '1', 'INSTALL_STATUS': '100',
-                     'CALLS': str(calls)}, text=True, capture_output=True)
-            self.assertEqual(result.returncode, 100)
-            self.assertEqual(calls.read_text().splitlines(), expected_calls)
+    def test_release_uses_pinned_tools_image(self):
+        release = workflow('build.yml')
+        job = release['jobs']['create-release']
+        self.assertRegex(job['container']['image'],
+                         r'^ghcr\.io/librescoot/release-tools@sha256:[0-9a-f]{64}$')
+        self.assertEqual(release['permissions']['packages'], 'read')
+        self.assertEqual(job['defaults']['run']['shell'], 'bash')
+        scripts = '\n'.join(step.get('run', '') for step in job['steps'])
+        self.assertNotIn('apt-get', scripts)
+        self.assertNotIn('hdiffpatch_v5.1.3_bin_linux64.zip', scripts)
+        dockerfile = (ROOT / 'docker/release.Dockerfile').read_text()
+        self.assertIn('xdelta3', dockerfile)
+        self.assertIn('hdiffpatch_v5.1.3_bin_linux64.zip', dockerfile)
+        self.assertIn('628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558', dockerfile)
+        image_workflow = workflow('release-tools-image.yml')
+        self.assertEqual(image_workflow['permissions']['packages'], 'write')
+        build = next(step for step in image_workflow['jobs']['build']['steps']
+                     if step.get('id') == 'image')
+        self.assertEqual(build['with']['file'], 'docker/release.Dockerfile')
+        self.assertIn('${{ github.sha }}', build['with']['tags'])
 
     @unittest.skipUnless(shutil.which('pigz'), 'pigz required')
     def test_artifact_packaging(self):

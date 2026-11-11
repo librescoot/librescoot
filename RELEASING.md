@@ -6,11 +6,11 @@ How a change gets from a green nightly to a tagged stable image.
 
 | Channel | Env file | Trigger | Version label |
 |---------|----------|---------|---------------|
-| `nightly` | `nightly.env` (mostly empty, AUTOREVs) | scheduled (cron, daily 01:00 UTC) or `gh workflow run build.yml -f channel=nightly` | `nightly-<TIMESTAMP>` |
+| `nightly` | `nightly.env` (mostly empty, AUTOREVs) | scheduled (00:57 Europe/Berlin, subject to scheduler delays) or manual workflow | `nightly-<TIMESTAMP>` |
 | `testing` | `stable.env` (pinned SRCREVs) | `gh workflow run build.yml -f channel=testing` | `testing-<TIMESTAMP>` |
 | `stable` | `stable.env` (pinned SRCREVs) | `git push origin v<X.Y.Z>` (tag push) | `v<X.Y.Z>` |
 
-Both `testing` and `stable` build the same set of SRCREVs (whatever's pinned in `stable.env`). The difference is just the trigger and the version label, plus the pre-release flag on the GitHub Release. Use `testing` to validate a `stable.env` change before tagging, then push the tag.
+Both `testing` and `stable` use the SRCREVs in `stable.env` when built from the same umbrella commit without overrides. The version label and channel-specific behavior can still differ. Record and compare all inputs, including layer pins and any unpinned sources; equal service pins alone do not establish identical images. Use `testing` to validate the intended candidate before tagging.
 
 `nightly` is on its own track. It tracks AUTOREV (HEAD of every service repo), so it's only useful if you trust whatever happens to be on `wrynose` / `main` at build time.
 
@@ -50,6 +50,12 @@ pigz; the packaging test skips if pigz is unavailable):
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
 ```
+
+## Release packaging image
+
+The `create-release` job runs in the digest-pinned `ghcr.io/librescoot/release-tools` image. It includes `xdelta3`, Python, Git, curl, jq and the checksum-verified HDiffPatch encoder, so release jobs do not install these tools at runtime. The Yocto build uses a separate image from `docker/Dockerfile`.
+
+To update release tools, modify `docker/release.Dockerfile`, build and test the image, and run the **Build release tools image** workflow on the intended commit. It publishes a SHA-tagged image and records its digest in the job summary. Update `create-release.container.image` to that immutable digest, run the workflow contract and delta tests, then verify an actual Testing release. The package is linked to this repository and the job uses its GitHub token with package-read permission. Do not use a mutable tag in the release job.
 
 ## Software bills of materials
 
@@ -105,17 +111,18 @@ client signature enforcement are separate release steps.
 
 ## Promoting a release
 
-The full path: bump SRCREVs, run a `testing` build, soak it, push a tag for `stable`, bump the docs sites.
+The full path is to agree on scope, review and pin exact component revisions, run a `testing` build, validate it on an appropriate test vehicle, and only then publish the stable tag and matching documentation. A tag push starts the stable build and may publish a GitHub Release; obtain release authorization before pushing it.
+
+Before selecting revisions, compare each component with the preceding stable release and review changes, tests, dependencies, local and remote branches, tags, and uncommitted work. Resolve annotated tags to commit objects with `git rev-parse <tag>^{commit}`. Record intended inclusions, exclusions and unresolved risks. Service tags alone do not pin recipes that use `AUTOREV`; `stable.env` provides the relevant overrides. Confirm the pinned commits are reachable from their intended remotes.
+
+Treat the umbrella commit, layer revisions, component pins, channel, workflow inputs and resulting artifact hashes as the candidate. If any input changes after validation, assess the effect and repeat the relevant build and tests. Review documentation, settings and release notes against the exact candidate.
 
 ### 1. Bump SRCREVs
 
 ```bash
 cd librescoot
 
-# Bump every service's pinned SRCREV to its current upstream tip:
-./update_env.py --target stable --all
-
-# Or pick specific ones:
+# Select components only after reviewing their current upstream revisions:
 ./update_env.py --target stable alarm-service motion-service
 
 git diff stable.env
@@ -123,7 +130,7 @@ git commit stable.env -m "stable: bump <services>"
 git push origin wrynose
 ```
 
-`update_env.py` rewrites `SRCREV_<service>=...` lines with the latest commit hash from each repo's GitHub HEAD.
+`update_env.py` rewrites the selected entries with upstream HEAD, not necessarily a release tag. Verify every resulting full SHA, including annotated tag resolution and any layer pins, before committing. Do not use `--all` as a substitute for the scope review.
 
 ### 2. Run a testing build
 
@@ -145,7 +152,7 @@ ssh deep-blue 'lsc ota status'
 Wait for both partitions to install, reboot, and come back `idle` on the new `testing-<TIMESTAMP>`. Smoke-test what changed, plus these release-wide checks:
 
 - **MDB time synchronization:** `chronyc tracking` on the MDB must report a normal leap status and a current reference time from an external NTP source.
-- **MDB → DBC time synchronization:** after the DBC boots with its unsaved RTC, `chronyc sources` on the DBC must select the MDB and the DBC clock must converge to the MDB clock. Test this over the normal USB link, whose transport addresses are `192.168.9.1/24` and `192.168.9.2/24`, not only over PPP.
+- **MDB-to-DBC time synchronization:** after the DBC boots, `chronyc sources` on the DBC must select the MDB and the DBC clock must converge to the MDB clock. Verify the active USB and PPP transports and their current addresses on the target.
 
 ### 4. Tag stable
 
@@ -155,6 +162,8 @@ git push origin v1.1.0
 ```
 
 The tag push triggers a `stable` channel build that produces `v1.1.0` artifacts. Same SRCREVs as the testing build, different label, marked non-prerelease on the Release.
+
+Verify the build's actual MDB and DBC artifacts, `SHA256SUMS`, release assets and delta base/target before distributing it. Preserve the generated technical changelog when adding reviewed release notes. Verify published documentation and the selected release on the download sites.
 
 Channel-set scooters back to `stable` if you flipped them earlier:
 

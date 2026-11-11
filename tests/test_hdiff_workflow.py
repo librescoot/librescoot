@@ -11,9 +11,9 @@ class HDiffWorkflowTest(unittest.TestCase):
         workflow = yaml.load((ROOT / '.github/workflows/build.yml').read_text(), Loader=yaml.BaseLoader)
         job = workflow['jobs']['create-release']
         steps = job['steps']
-        install = next(s for s in steps if s.get('name') == 'Install HDiffPatch encoder')
-        self.assertEqual(install['if'], "startsWith(needs.prepare.outputs.version, 'nightly-') || startsWith(needs.prepare.outputs.version, 'testing-')")
-        self.assertIn('628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558', install['run'])
+        image = (ROOT / 'docker/release.Dockerfile').read_text()
+        self.assertIn('628963bf2ee9108a97260fa5eef44acd9ec94369b76090a957c9182b3abbb558', image)
+        self.assertIn('ghcr.io/librescoot/release-tools@sha256:', job['container']['image'])
         create = next(s for s in steps if s.get('name') == 'Create delta patches')['run']
         self.assertIn('"$OUTPUT_DELTA"', create)
         self.assertIn('"$OUTPUT_HDIFF" --hdiffpatch', create)

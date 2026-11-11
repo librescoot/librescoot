@@ -1,0 +1,31 @@
+name: Build release tools image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/release.Dockerfile
+          push: true
+          tags: ghcr.io/librescoot/release-tools:sha-${{ github.sha }}
+      - name: Record image digest
+        run: |
+          echo 'Image: ghcr.io/librescoot/release-tools@${{ steps.image.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"
