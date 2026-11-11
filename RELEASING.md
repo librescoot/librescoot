@@ -139,7 +139,7 @@ gh workflow run build.yml --repo librescoot/librescoot --ref wrynose -f channel=
 gh run list --repo librescoot/librescoot --workflow build.yml --limit 1
 ```
 
-A `testing` build produces `testing-<TIMESTAMP>` artifacts using the SRCREVs you just pinned. Same image content as the eventual stable, different label.
+A `testing` build produces `testing-<TIMESTAMP>` artifacts using the pins in the selected commit. Record the workflow run, commit and inputs. Channel-specific configuration and unpinned sources can still differ from the eventual stable build.
 
 ### 3. Soak on a deployed scooter
 
@@ -161,7 +161,7 @@ git tag -a v1.1.0 -m "v1.1.0: <one-line summary>"
 git push origin v1.1.0
 ```
 
-The tag push triggers a `stable` channel build that produces `v1.1.0` artifacts. Same SRCREVs as the testing build, different label, marked non-prerelease on the Release.
+The tag push triggers a `stable` channel build that produces `v1.1.0` artifacts and a non-prerelease GitHub Release. When the tag points to the tested commit it uses the same committed pins; check channel-specific behavior and any unpinned inputs separately.
 
 Verify the build's actual MDB and DBC artifacts, `SHA256SUMS`, release assets and delta base/target before distributing it. Preserve the generated technical changelog when adding reviewed release notes. Verify published documentation and the selected release on the download sites.
 
