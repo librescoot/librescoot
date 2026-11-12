@@ -252,16 +252,22 @@ srcrev_changelog() {
 
   echo "Diffing ${CHANNEL} against previous release ${prev_tag}" >&2
 
-  # Make sure the previous tag is present locally before git show.
-  git fetch origin "refs/tags/${prev_tag}:refs/tags/${prev_tag}" >/dev/null 2>&1 || true
+  # Container jobs can run as a different UID from the workspace owner.
+  # Trust only this checkout, without changing global Git configuration.
+  local -a release_git=(git -c "safe.directory=$(pwd -P)")
+  if ! "${release_git[@]}" cat-file -e "refs/tags/${prev_tag}^{commit}" 2>/dev/null; then
+    if ! "${release_git[@]}" fetch origin "refs/tags/${prev_tag}:refs/tags/${prev_tag}"; then
+      echo "Error: could not fetch previous release ${prev_tag}" >&2
+      return 1
+    fi
+  fi
 
   local prev_env
   prev_env=$(mktemp)
-  if ! git show "${prev_tag}:stable.env" > "$prev_env" 2>/dev/null; then
-    echo "Warning: could not read stable.env at ${prev_tag}; treating as first release" >&2
+  if ! "${release_git[@]}" show "refs/tags/${prev_tag}:stable.env" > "$prev_env"; then
+    echo "Error: could not read stable.env at previous release ${prev_tag}" >&2
     rm -f "$prev_env"
-    initial_pinned_revisions "$curr_env"
-    return 0
+    return 1
   fi
 
   # Top-level repo: diff the release tags directly.

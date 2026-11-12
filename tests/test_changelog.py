@@ -49,7 +49,7 @@ class ChangelogTests(unittest.TestCase):
                         f'SRCREV_radio_gaga="{unchanged}" # v0.6.0\n')
             (work / 'previous.env').write_text(pins(old_meta, old_battery))
             (work / 'stable.env').write_text(pins(new_meta, new_battery))
-            (tools / 'git').write_text('#!/bin/sh\nif [ "$1" = show ]; then cat "$OLD_ENV"; fi\n')
+            (tools / 'git').write_text('#!/bin/sh\nif [ "$1" = -c ]; then shift 2; fi\nif [ "$1" = show ]; then cat "$OLD_ENV"; fi\n')
             (tools / 'curl').write_text('''#!/usr/bin/env python3
 import json, os, pathlib, sys
 url = sys.argv[-1]
