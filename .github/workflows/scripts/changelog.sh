@@ -9,8 +9,8 @@ set -euo pipefail
 # Testing & stable (both source stable.env with pinned SRCREVs): for each
 # pinned SRCREV and LAYER_VERSION_meta_librescoot, diff the exact commits
 # between the previous release of the same channel and this one via the
-# /compare API. Repos that exist in the workflow but are not pinned in
-# stable.env fall back to the time-window query for that section only.
+# /compare API. Dependency repository activity is listed separately by time
+# window; those commits do not determine the revisions shipped in the image.
 #
 # Required env vars:
 #   CHANNEL        nightly | testing | stable
@@ -34,16 +34,19 @@ declare -A SRCREV_REPO=(
   [SRCREV_battery_service]="librescoot/battery-service"
   [SRCREV_bluetooth_service]="librescoot/bluetooth-service"
   [SRCREV_boot_animation]="librescoot/boot-animation"
+  [SRCREV_connect_service]="librescoot/connect-service"
   [SRCREV_data_server]="librescoot/data-server"
   [SRCREV_dbc_backlight_service]="librescoot/dbc-backlight-service"
   [SRCREV_dbc_dispatcher]="librescoot/dbc-dispatcher"
   [SRCREV_ecu_service]="librescoot/ecu-service"
   [SRCREV_event_service]="librescoot/event-service"
   [SRCREV_keycard_service]="librescoot/keycard-service"
+  [SRCREV_linux_imx_led]="librescoot/kernel-module-imx-pwm-led"
   [SRCREV_lsc]="librescoot/lsc"
   [SRCREV_modem_service]="librescoot/modem-service"
   [SRCREV_motion_service]="librescoot/motion-service"
   [SRCREV_pm_service]="librescoot/pm-service"
+  [SRCREV_qt_eglfs_fbdev]="librescoot/qt-eglfs-fbdev"
   [SRCREV_radio_gaga]="rescoot/radio-gaga"
   [SRCREV_scootui_qt]="librescoot/scootui-qt"
   [SRCREV_scootui_tui]="librescoot/scootui-tui"
@@ -59,11 +62,10 @@ declare -A SRCREV_REPO=(
 META_REPO="librescoot/meta-librescoot"
 TOP_REPO="librescoot/librescoot"
 
-UNPINNED_REPOS=(
+DEPENDENCY_ACTIVITY_REPOS=(
   "librescoot/redis-ipc"
   "librescoot/librefsm"
   "librescoot/pn7150"
-  "librescoot/kernel-module-imx-pwm-led"
 )
 
 NIGHTLY_TIMEWINDOW_REPOS=(
@@ -322,23 +324,22 @@ srcrev_changelog() {
 
   rm -f "$prev_env"
 
-  # Unpinned repos: fall back to time-window between previous release
-  # publish time and this build's cutoff.
-  if [ ${#UNPINNED_REPOS[@]} -gt 0 ]; then
+  # Dependency activity between the previous release and this build's cutoff.
+  if [ ${#DEPENDENCY_ACTIVITY_REPOS[@]} -gt 0 ]; then
     local since="$prev_published_at"
     if [ -z "$since" ] || [ "$since" = "null" ]; then
       since=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
     fi
     local before_len=${#CHANGELOG}
     local repo
-    for repo in "${UNPINNED_REPOS[@]}"; do
+    for repo in "${DEPENDENCY_ACTIVITY_REPOS[@]}"; do
       commits_timewindow "$repo" "$since" "$UNTIL_ISO"
     done
     if [ ${#CHANGELOG} -ne "$before_len" ]; then
       # Retroactively prepend the section note. We emit sections individually
       # inside render_commits, so splice the note in before the first one.
-      local note="_The components below are not pinned in stable.env and track latest at build time._\n\n"
-      CHANGELOG="${CHANGELOG:0:$before_len}## Unpinned components\n\n${note}${CHANGELOG:$before_len}"
+      local note="_Recent dependency commits in this release window; shipped revisions are determined by each component's dependencies._\n\n"
+      CHANGELOG="${CHANGELOG:0:$before_len}## Dependency repository activity\n\n${note}${CHANGELOG:$before_len}"
     fi
   fi
 }
@@ -366,18 +367,17 @@ initial_pinned_revisions() {
   done <<< "$sorted_keys"
   CHANGELOG="${CHANGELOG}\n"
 
-  # Also emit a time-window section for the unpinned repos so the first
-  # release documents recent activity there.
+  # Also document recent dependency activity for the first release.
   local since
   since=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
   local before_len=${#CHANGELOG}
   local repo
-  for repo in "${UNPINNED_REPOS[@]}"; do
+  for repo in "${DEPENDENCY_ACTIVITY_REPOS[@]}"; do
     commits_timewindow "$repo" "$since" "$UNTIL_ISO"
   done
   if [ ${#CHANGELOG} -ne "$before_len" ]; then
-    local note="_The components below are not pinned in stable.env and track latest at build time._\n\n"
-    CHANGELOG="${CHANGELOG:0:$before_len}## Unpinned components\n\n${note}${CHANGELOG:$before_len}"
+    local note="_Recent dependency commits in this release window; shipped revisions are determined by each component's dependencies._\n\n"
+    CHANGELOG="${CHANGELOG:0:$before_len}## Dependency repository activity\n\n${note}${CHANGELOG:$before_len}"
   fi
 }
 

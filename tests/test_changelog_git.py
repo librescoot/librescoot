@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -59,6 +60,9 @@ if '/releases?' in url:
 elif '/compare/' in url:
     body = {'commits': [{'sha': 'f' * 40, 'html_url': 'https://example.org/commit',
                          'commit': {'message': 'reconnect recovery'}}]}
+elif '/redis-ipc/commits?' in url and os.environ.get('DEPENDENCY_ACTIVITY'):
+    body = [{'sha': 'e' * 40, 'html_url': 'https://example.org/dependency',
+             'commit': {'message': 'dependency activity'}}]
 else:
     body = []
 if '-o' in sys.argv:
@@ -124,6 +128,23 @@ else:
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('reconnect recovery', (self.work / 'output').read_text())
         self.assertEqual(self.git('rev-parse', '--verify', 'testing-previous').returncode, 0)
+
+    def test_all_pins_are_mapped_and_excluded_from_dependency_activity(self):
+        script = SCRIPT.read_text()
+        mapping = dict(re.findall(r'\[(SRCREV_\w+)\]="([^"]+)"', script))
+        pins = set(re.findall(r'^(SRCREV_\w+)=', (ROOT / 'stable.env').read_text(), re.M))
+        self.assertEqual(set(mapping), pins)
+        activity = script.split('DEPENDENCY_ACTIVITY_REPOS=(', 1)[1].split(')', 1)[0]
+        self.assertFalse(set(re.findall(r'"([^"]+)"', activity)) & set(mapping.values()))
+
+    def test_dependency_activity_does_not_claim_floating_image_revisions(self):
+        self.env['DEPENDENCY_ACTIVITY'] = '1'
+        result = self.run_changelog()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = (self.work / 'output').read_text()
+        self.assertIn('## Dependency repository activity', output)
+        self.assertIn('dependency activity', output)
+        self.assertNotIn('track latest at build time', output)
 
     def test_genuine_first_release_still_lists_pins(self):
         self.env['FIRST_RELEASE'] = '1'
