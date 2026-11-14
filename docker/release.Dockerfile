@@ -4,7 +4,7 @@ LABEL org.opencontainers.image.source="https://github.com/librescoot/librescoot"
 LABEL org.opencontainers.image.description="Librescoot firmware release packaging tools"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash ca-certificates curl git jq python3 unzip xdelta3 \
+    bash ca-certificates curl git jq python3 unzip xdelta3 zstd \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl --fail --silent --show-error --location --retry 3 \

@@ -72,18 +72,29 @@ def create_xdelta_patch(old_file, new_file, patch_file):
         if os.path.exists(candidates[1][0]):
             os.remove(candidates[1][0])
 
+def payload_paths(files):
+    paths = [path for path in files if path in ('data/0000.tar.gz', 'data/0000.tar.zst')]
+    if len(paths) > 1:
+        raise ValueError('artifact contains multiple rootfs payloads')
+    return paths[0] if paths else None
+
+
 def process_file_for_delta(filepath, work_dir, file_id):
     filename = os.path.basename(filepath)
     metadata = {'original_name': filename, 'compressed': False, 'sha256': calculate_sha256(filepath), 'size': os.path.getsize(filepath)}
     if filename.endswith('.gz') and is_gzipped(filepath):
         decompressed_path = os.path.join(work_dir, f"{file_id}.decompressed")
         decompress_gz(filepath, decompressed_path)
-        metadata['compressed'] = True
-        metadata['decompressed_sha256'] = calculate_sha256(decompressed_path)
-        metadata['decompressed_size'] = os.path.getsize(decompressed_path)
-        return decompressed_path, metadata
+    elif filename.endswith('.tar.zst'):
+        decompressed_path = os.path.join(work_dir, f"{file_id}.decompressed")
+        with open(decompressed_path, 'wb') as output:
+            subprocess.run(['zstd', '-q', '-d', '-c', filepath], stdout=output, check=True)
     else:
         return filepath, metadata
+    metadata['compressed'] = True
+    metadata['decompressed_sha256'] = calculate_sha256(decompressed_path)
+    metadata['decompressed_size'] = os.path.getsize(decompressed_path)
+    return decompressed_path, metadata
 
 def get_file_list(directory):
     files = {}
@@ -132,7 +143,14 @@ def create_delta_patch(old_mender, new_mender, output_delta, algorithm='xdelta3'
         extract_mender(new_mender, new_dir)
 
         old_files, new_files = get_file_list(old_dir), get_file_list(new_dir)
-        
+        old_payload, new_payload = payload_paths(old_files), payload_paths(new_files)
+        old_names = {}
+        if old_payload and new_payload and old_payload != new_payload:
+            # Compression is an outer representation. Delta the raw payloads
+            # even when the member changes from .tar.gz to .tar.zst or back.
+            old_files[new_payload] = old_files.pop(old_payload)
+            old_names[new_payload] = old_payload
+
         metadata = {
             'old_artifact_name': get_artifact_name(old_dir),
             'new_artifact_name': get_artifact_name(new_dir),
@@ -150,7 +168,7 @@ def create_delta_patch(old_mender, new_mender, output_delta, algorithm='xdelta3'
 
         print("\nAnalyzing differences...")
         for rel_path, new_info in new_files.items():
-            old_file_path = os.path.join(old_dir, rel_path)
+            old_file_path = os.path.join(old_dir, old_names.get(rel_path, rel_path))
             new_file_path = os.path.join(new_dir, rel_path)
 
             # Metadata and its signature travel verbatim. The device's xdelta
