@@ -209,7 +209,7 @@ jobs:
     if: ${{ needs.prepare.outputs.has_changes == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/wrynose') || startsWith(github.ref, 'refs/tags/v')) }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/librescoot/release-tools@sha256:e2c10116403fd6335032981bc5a0c92efc3b383b375c0d5870f1a23b5965e8c8
+      image: ghcr.io/librescoot/release-tools@sha256:7493c9ae38d3f9fc2bed78fbd78a48bb07f6fddf6329469da1d2bd03a411a75f
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
