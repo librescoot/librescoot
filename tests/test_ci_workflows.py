@@ -121,6 +121,18 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(build['with']['file'], 'docker/release.Dockerfile')
         self.assertIn('${{ github.sha }}', build['with']['tags'])
 
+    def test_zstd_payload_is_guarded_and_keeps_one_mender_asset(self):
+        steps = workflow('build.yml')['jobs']['create-release']['steps']
+        position = next(i for i, step in enumerate(steps) if step.get('name') == 'Recompress full Mender payloads after bridge cutover')
+        step = steps[position]
+        self.assertEqual(step['if'], "${{ vars.OTA_ZSTD_PAYLOADS == 'true' }}")
+        script = step['run']
+        self.assertLess(script.index('verify-ota-feed-bridges.py'), script.index('mender-recompress-zstd.py'))
+        self.assertIn('mv "${source}.zstd.tmp" "$source"', script)
+        self.assertNotIn('.zmender', script)
+        self.assertLess(position, next(i for i, item in enumerate(steps) if item.get('name') == 'Create delta patches'))
+        self.assertLess(position, next(i for i, item in enumerate(steps) if item.get('name') == 'Generate SHA256SUMS'))
+
     @unittest.skipUnless(shutil.which('pigz'), 'pigz required')
     def test_artifact_packaging(self):
         steps = workflow('build-firmware.yml')['jobs']['build']['steps']

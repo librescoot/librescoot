@@ -244,6 +244,30 @@ jobs:
             echo "artifacts directory does not exist!"
           fi
 
+      # Gzip remains the default for all bridge builds. The repository variable
+      # is enabled only after the three published feeds are pinned and qualified.
+      - name: Recompress full Mender payloads after bridge cutover
+        if: ${{ vars.OTA_ZSTD_PAYLOADS == 'true' }}
+        env:
+          CURRENT_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 .github/workflows/scripts/verify-ota-feed-bridges.py
+          command -v zstd >/dev/null || { echo 'release-tools lacks zstd' >&2; exit 1; }
+          for variant in unu-mdb unu-dbc; do
+            name="librescoot-${variant}-${{ needs.prepare.outputs.version }}.mender"
+            mapfile -t matches < <(find artifacts -type f -name "$name")
+            if [ "${#matches[@]}" -ne 1 ]; then
+              echo "expected exactly one $name, found ${#matches[@]}" >&2; exit 1
+            fi
+            source=${matches[0]}
+            python3 mender-recompress-zstd.py "$source" "${source}.zstd.tmp"
+            mv "${source}.zstd.tmp" "$source"
+          done
+          # The feed generator refuses to publish any zstd release on an
+          # uncapped legacy feed. This marker travels with the release.
+          printf '{"version":1,"payload_compression":"zstd","tag":"%s"}\n' "$CURRENT_TAG" > "artifacts/librescoot-${CURRENT_TAG}.ota-zstd.json"
+
       - name: Create delta patches
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
