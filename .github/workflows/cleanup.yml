@@ -11,13 +11,13 @@ jobs:
     name: Delete old nightlies
     runs-on: self-hosted
     steps:
-      - name: Get timestamp
-        uses: jay2610/delete-older-releases@1.0.0
+      - uses: actions/checkout@v4
         with:
-          keep_latest: 30
-          delete_type: 'prerelease'
-          delete_tag_pattern: nightly
-          target_branch: 'wrynose'
-          delete_tags: true
+          ref: wrynose
+      # This repository's pin must match the qualified downloads-site pin.
+      # An unset or invalid pin refuses cleanup rather than risking the bridge.
+      - name: Delete old Nightlies while retaining the bridge
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OTA_NIGHTLY_BRIDGE_TAG: ${{ vars.OTA_NIGHTLY_BRIDGE_TAG }}
+        run: python3 .github/workflows/scripts/cleanup-nightlies.py
