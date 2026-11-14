@@ -300,6 +300,7 @@ jobs:
           # Create directory for previous release files
           rm -rf previous_release
           mkdir -p previous_release
+          printf '%s\n' "$PREV_TAG" > previous_release/tag
 
           # Map targets to variant_ids
           declare -A VARIANT_MAP
@@ -360,6 +361,17 @@ jobs:
           done
 
           echo "Delta patch creation complete!"
+
+      - name: Generate OTA capability metadata
+        env:
+          CURRENT_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          args=(--tag "$CURRENT_TAG" --artifacts artifacts --output "artifacts/librescoot-${CURRENT_TAG}.ota-v2.json")
+          if [ -f previous_release/tag ]; then
+            args+=(--previous previous_release --previous-tag "$(<previous_release/tag)")
+          fi
+          python3 .github/workflows/scripts/ota-artifact-metadata.py "${args[@]}"
 
       - name: Generate SHA256SUMS
         run: |
