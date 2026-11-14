@@ -40,7 +40,7 @@ def delta(path, old, new, oldsha, newsha, algorithm):
                 'type': 'modified', 'algorithm': algorithm,
                 'old_meta': {'original_name': '0000.tar.gz'}, 'new_meta': {'original_name': '0000.tar.zst'}}}}
     with tarfile.open(path, mode='w:gz') as tar:
-        add(tar, 'metadata.json', json.dumps(info).encode())
+        add(tar, './metadata.json', json.dumps(info).encode())
 
 
 class MetadataTests(unittest.TestCase):

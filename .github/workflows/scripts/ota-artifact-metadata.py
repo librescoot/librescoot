@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import io
 import json
+import posixpath
 import re
 import tarfile
 from pathlib import Path
@@ -21,7 +22,10 @@ def digest(path):
 
 
 def small_member(archive, name, limit=1024 * 1024):
-    member = archive.getmember(name)
+    matches = [m for m in archive.getmembers() if posixpath.normpath(m.name) == name]
+    if len(matches) != 1:
+        raise ValueError(f"missing or duplicate {name}")
+    member = matches[0]
     if not member.isfile() or member.size > limit:
         raise ValueError(f"invalid {name}")
     data = archive.extractfile(member)
