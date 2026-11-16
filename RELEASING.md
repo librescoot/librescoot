@@ -12,7 +12,7 @@ How a change gets from a green nightly to a tagged stable image.
 
 Both `testing` and `stable` use the SRCREVs in `stable.env` when built from the same umbrella commit without overrides. The version label and channel-specific behavior can still differ. Record and compare all inputs, including layer pins and any unpinned sources; equal service pins alone do not establish identical images. Use `testing` to validate the intended candidate before tagging.
 
-`nightly` is on its own track. It tracks AUTOREV (HEAD of every service repo), so it's only useful if you trust whatever happens to be on `wrynose` / `main` at build time.
+By default, `nightly` tracks AUTOREV (HEAD of every service repo). For a nightly that exercises the candidate source pins before a Testing build, run `gh workflow run build.yml -f channel=nightly -f use_release_pins=true`. That build uses the `stable.env` shipped in the build image while retaining the nightly channel and version. Verify its source pins and artifacts before comparing it with Testing.
 
 `wrynose` is the current Yocto base and the default branch of this repo. `scarthgap` is the older base, covering anything before 1.2.x. It still exists, but releases are not cut from it.
 

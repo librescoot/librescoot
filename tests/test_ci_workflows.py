@@ -60,6 +60,31 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(build['uses'], './.github/workflows/build-firmware.yml')
             self.assertEqual([v['target'] for v in build['strategy']['matrix']['include']], targets)
 
+    def test_nightly_release_pins_are_opt_in_and_reach_both_build_attempts(self):
+        release = workflow('build.yml')
+        option = release['on']['workflow_dispatch']['inputs']['use_release_pins']
+        self.assertEqual(option['default'], 'false')
+        self.assertEqual(release['jobs']['build']['with']['use_release_pins'],
+                         '${{ inputs.use_release_pins || false }}')
+        shared = workflow('build-firmware.yml')
+        self.assertEqual(shared['on']['workflow_call']['inputs']['use_release_pins']['default'], 'false')
+        scripts = [step['run'] for step in shared['jobs']['build']['steps']
+                   if step.get('name') in ('Build firmware', 'Recover from pseudo abort and retry')]
+        self.assertEqual(len(scripts), 2)
+        self.assertTrue(all('USE_RELEASE_PINS="${{ inputs.use_release_pins }}"' in script for script in scripts))
+        self.assertIn('-e USE_RELEASE_PINS="${USE_RELEASE_PINS}"', (ROOT / 'build.sh').read_text())
+        entry = (ROOT / 'docker/entrypoint.sh').read_text()
+        selection = entry.split('# Source environment file based on BUILD_CHANNEL', 1)[1].split(
+            '# Save any LAYER_VERSION overrides', 1)[0]
+        for channel, flag, expected in [('nightly', 'false', '/yocto/nightly.env'),
+                                        ('nightly', 'true', '/opt/yocto-env/stable.env'),
+                                        ('testing', 'false', '/yocto/stable.env'),
+                                        ('stable', 'false', '/yocto/stable.env')]:
+            with self.subTest(channel=channel, flag=flag), tempfile.TemporaryDirectory() as tmp:
+                result = shell(selection + '\nprintf "%s" "$ENV_FILE"', tmp,
+                               BUILD_CHANNEL=channel, USE_RELEASE_PINS=flag)
+                self.assertTrue(result.stdout.endswith(expected), result.stdout)
+
     def test_version_channels(self):
         steps = workflow('build.yml')['jobs']['prepare']['steps']
         script = next(s['run'] for s in steps if s.get('id') == 'set-version')

@@ -38,6 +38,11 @@ on:
         options:
           - nightly
           - testing
+      use_release_pins:
+        description: 'Build with the stable.env source pins (for release qualification)'
+        required: false
+        default: false
+        type: boolean
       meta_librescoot_branch:
         description: 'meta-librescoot branch (default: wrynose)'
         required: false
@@ -200,6 +205,7 @@ jobs:
       variant_id: ${{ matrix.variant_id }}
       version: ${{ needs.prepare.outputs.version }}
       channel: ${{ needs.prepare.outputs.channel }}
+      use_release_pins: ${{ inputs.use_release_pins || false }}
       meta_librescoot_branch: ${{ inputs.meta_librescoot_branch || '' }}
 
   create-release:

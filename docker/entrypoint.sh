@@ -4,7 +4,10 @@ set -e
 cd /yocto
 
 # Source environment file based on BUILD_CHANNEL
-if [ "$BUILD_CHANNEL" = "nightly" ]; then
+if [ "$BUILD_CHANNEL" = "nightly" ] && [ "$USE_RELEASE_PINS" = "true" ]; then
+    ENV_FILE="/opt/yocto-env/stable.env"
+    echo "Build channel is NIGHTLY with release pins. Using ${ENV_FILE}"
+elif [ "$BUILD_CHANNEL" = "nightly" ]; then
     ENV_FILE="/yocto/nightly.env"
     echo "Build channel is NIGHTLY. Using ${ENV_FILE}"
 elif [ "$BUILD_CHANNEL" = "testing" ] || [ "$BUILD_CHANNEL" = "stable" ]; then

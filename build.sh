@@ -50,5 +50,6 @@ sudo docker run -it --rm \
     -e SCOOTUI_BRANCH="${SCOOTUI_BRANCH}" \
     -e SCOOTUI_BRANCH="${SCOOTUI_BRANCH}" \
     -e BUILD_CHANNEL="${BUILD_CHANNEL}" \
+    -e USE_RELEASE_PINS="${USE_RELEASE_PINS}" \
     -e LAYER_VERSION_meta_librescoot="${LAYER_VERSION_meta_librescoot}" \
     "${IMAGE_NAME}"

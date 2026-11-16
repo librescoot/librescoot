@@ -18,6 +18,9 @@ on:
       channel:
         required: true
         type: string
+      use_release_pins:
+        default: false
+        type: boolean
       meta_librescoot_branch:
         default: ''
         type: string
@@ -55,6 +58,7 @@ jobs:
 
           # Use the determined version
           LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
+          USE_RELEASE_PINS="${{ inputs.use_release_pins }}" \
           BUILD_CHANNEL="${{ inputs.channel }}" \
           LIBRESCOOT_VERSION="${{ inputs.version }}" \
           ./build.sh ${{ inputs.target }} 2>&1 | tee build.log
@@ -99,6 +103,7 @@ jobs:
 
           set +e
           LAYER_VERSION_meta_librescoot="${{ inputs.meta_librescoot_branch }}" \
+          USE_RELEASE_PINS="${{ inputs.use_release_pins }}" \
           BUILD_CHANNEL="${{ inputs.channel }}" \
           LIBRESCOOT_VERSION="${{ inputs.version }}" \
           ./build.sh ${{ inputs.target }} 2>&1 | tee build-retry.log
