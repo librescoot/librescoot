@@ -71,7 +71,7 @@ jobs:
           # rerun fails identically until the WORKDIR is cleared. Only that
           # recipe's WORKDIR is removed here; sstate-cache and downloads are
           # never touched, so bitbake restores from sstate on the retry.
-          if ! grep -qE "abort\(\)ing pseudo client|Pseudo_Abort" build.log; then
+          if ! grep -qE "abort\(\)ing pseudo client|Pseudo_Abort|^Pseudo log:" build.log; then
             echo "::error::Build failed and is not a pseudo abort, see log above."
             exit 1
           fi
@@ -81,6 +81,12 @@ jobs:
           RECIPE=$(grep -oE '^ERROR: [A-Za-z0-9._+-]+ do_[A-Za-z0-9_]+:' build.log \
             | head -n1 \
             | sed -E 's/^ERROR: //; s/ do_.*$//; s/-[0-9][^ -]*-r[0-9]+$//') || true
+
+          if [ -z "$RECIPE" ]; then
+            # BitBake can report the abort as a task exit with the pseudo log.
+            RECIPE=$(sed -nE "s|^ERROR: Task \\([^:]+/([A-Za-z0-9._+-]+)\\.bb:do_[A-Za-z0-9_]+\\) failed with exit code '134'.*|\\1|p" build.log \
+              | head -n1 | sed -E 's/_[0-9].*$//') || true
+          fi
 
           if [ -z "$RECIPE" ]; then
             echo "::error::Could not determine the failing recipe from the pseudo abort log."

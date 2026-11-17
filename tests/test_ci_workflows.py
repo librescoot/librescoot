@@ -198,6 +198,29 @@ class WorkflowTests(unittest.TestCase):
                 self.assertTrue((deploy / f'{stem}.sdimg').exists())
                 self.assertFalse((deploy / f'{stem}.sdimg.gz').exists())
 
+    def test_pseudo_abort_recipe_detection(self):
+        steps = workflow('build-firmware.yml')['jobs']['build']['steps']
+        script = next(s['run'] for s in steps if s['name'] == 'Recover from pseudo abort and retry')
+        detection = script.split('find yocto/build/tmp/work', 1)[0]
+        cases = [
+            ("ERROR: librescoot-mdb-image-1.0-r0 do_rootfs: abort()ing pseudo client\n", 'librescoot-mdb-image'),
+            ("ERROR: Task (/yocto/sources/meta-librescoot/recipes-fsl/images/librescoot-mdb-image.bb:do_rootfs) failed with exit code '134'\nPseudo log:\npath mismatch [17 links]: rootfs\n", 'librescoot-mdb-image'),
+            ("ERROR: Task (/yocto/sources/meta-librescoot/recipes-fsl/images/librescoot-dbc-image.bb:do_rootfs) failed with exit code '134'\nPseudo log:\ninode mismatch: rootfs\n", 'librescoot-dbc-image'),
+            ("ERROR: Task (/yocto/sources/meta/recipes-core/example/example_1.2.bb:do_install) failed with exit code '134'\nPseudo log:\ninode mismatch: file\n", 'example'),
+            ("ERROR: Task (/yocto/sources/example.bb:do_compile) failed with exit code '134'\n", None),
+            ("ERROR: Task (/yocto/sources/example.bb:do_compile) failed with exit code '1'\nPseudo log:\n", None),
+        ]
+        for log, expected in cases:
+            with self.subTest(expected=expected, log=log), tempfile.TemporaryDirectory() as tmp:
+                (Path(tmp) / 'build.log').write_text(log)
+                result = subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', detection],
+                                        cwd=tmp, text=True, capture_output=True)
+                if expected is None:
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+                    self.assertIn(f'Recipe: {expected}\n', result.stdout)
+
     def test_dashboard_build_does_not_clean(self):
         script = (ROOT / 'docker/entrypoint.sh').read_text().split('echo "Starting build process..."', 1)[1]
         for target, package, expected in [('dbc', '', 'librescoot-dbc-image --continue'),
